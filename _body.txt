@@ -1,0 +1,20 @@
+<body>
+
+<!-- 密码验证层 -->
+<div id="authLayer">
+  <div class="auth-box">
+    <h2>🔒 饭团姐姐数据看板</h2>
+    <p>请输入访问密码</p>
+    <input type="password" id="authInput" placeholder="******" maxlength="20" onkeydown="if(event.key==='Enter')checkAuth()">
+    <button onclick="checkAuth()">进入看板</button>
+    <div class="err" id="authErr">密码错误，请重试</div>
+  </div>
+</div>
+
+<!-- 主应用内容 -->
+<div id="appContent">
+
+<!-- ========== 主页 ========== -->
+<div class="wrap" id="mainView">
+  <div class="header">
+    <h1>🍙 <span>饭团姐姐

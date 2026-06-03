@@ -1,0 +1,15 @@
+Position around init(): 55366-55716
+ocument.getElementById('sDates').textContent = dates.length;
+  const grand = allStores.reduce((a,b)=>a+b.totals['总支付'],0);
+  document.getElementById('sTotal').textContent = '¥'+(grand/10000).toFixed(1)+'万';
+  
+  renderTopCards();
+  renderOverviewCharts();
+  renderDailyTable();
+  renderStoreList();
+}
+init();
+
+
+// ── Top卡片 ──
+function renderTopCards(
