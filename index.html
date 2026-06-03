@@ -223,7 +223,7 @@ async function handleUpload(file) {
     const cn=["总支付","美团验券","美团验券笔数","采购","微信支付","微信支付笔数","支付宝","支付宝笔号","现金","现金笔数","京东外卖","京东外卖笔数","美团外卖","美团外卖笔数","淘宝闪购","淘宝闪购笔数","美团验券","美团验券笔数","抖音外卖","抖音外卖笔数"];
     for(let i=3;i<rows.length;i++){const r=rows[i];if(!r||!r[0])continue;const n=String(r[0]).trim();if(!n||n==="汇总")continue;const sd={};for(let c=1;c<=20&&c<r.length;c++){if(cn[c-1]){const v=parseFloat(r[c]);sd[cn[c-1]]=isNaN(v)?0:v;}}stores[n]=sd;so.push(n);}
     if(so.length===0) throw new Error("No data");
-    const tot=Object.values(stores).reduce((s,x)=>s+(x["总支付金额"]||0),0);
+    const tot=Object.values(stores).reduce((s,x)=>s+(x["总支付"]||0),0);
     st.innerHTML="OK! "+ds+" "+so.length+"st Y"+tot.toFixed(2);
     const _dbg = so[0] ? stores[so[0]] : null;
     if(_dbg) console.log("STORE_KEYS:", Object.keys(_dbg), "VAL_总支付:", _dbg["总支付"], "VAL_总金额:", _dbg["总支付金额"]);
