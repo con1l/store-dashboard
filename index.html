@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>饭团姐姐门店数据看板</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f0f2f5;color:#222}
@@ -166,39 +167,72 @@ function initApp() {
 }
 
 // ──────────────────────────────────────────────
-// 上传文件到后端API解析（后端用xlsx库）
+// 用ExcelJS CDN解析Excel（浏览器端）
 // ──────────────────────────────────────────────
 async function handleUpload(file) {
   if (!file) return;
   const status = document.getElementById('uploadStatus');
   status.style.display = 'block';
-  status.innerHTML = '⏳ 正在上传文件...';
+  status.innerHTML = '⏳ 正在解析文件...';
 
   try {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('auth', 'ft2024');
+    const workbook = new ExcelJS.Workbook();
+    const arrayBuffer = await file.arrayBuffer();
+    await workbook.xlsx.load(arrayBuffer);
 
-    const resp = await fetch('/api/upload', {
-      method: 'POST',
-      body: formData
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) throw new Error('没有找到工作表');
+
+    // 读取所有行
+    const rows = [];
+    worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
+      const values = row.values;
+      // row.values是1-indexed的数组，转成0-indexed
+      rows.push(Array.isArray(values) ? values.slice(1) : [values]);
     });
 
-    const result = await resp.json();
-
-    if (!resp.ok || !result.ok) {
-      throw new Error(result.error || '上传失败 (' + resp.status + ')');
+    // 提取日期（第二行第一列）
+    let dateStr = '';
+    if (rows[1] && rows[1][0] !== undefined) {
+      dateStr = String(rows[1][0]).split('-')[0].trim();
     }
 
+    // 解析门店数据（从第4行开始）
+    const stores = {};
+    const storeOrder = [];
+    const colNames = ['总支付金额','美团验券','美团验券笔数','采购','微信支付','微信支付笔数','支付宝','支付宝笔数','现金','现金笔数','京东外卖','京东外卖笔数','美团外卖','美团外卖笔数','淘宝闪购','淘宝闪购笔数','美团验券','美团验券笔数','抖音外卖','抖音外卖笔数'];
+
+    for (let i = 3; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || !row[0]) continue;
+      const name = String(row[0]).trim();
+      if (!name || name === '汇总') continue;
+      const storeData = {};
+      for (let c = 1; c <= 20 && c < row.length; c++) {
+        if (colNames[c-1]) {
+          const val = parseFloat(row[c]);
+          storeData[colNames[c-1]] = isNaN(val) ? 0 : val;
+        }
+      }
+      stores[name] = storeData;
+      storeOrder.push(name);
+    }
+
+    if (storeOrder.length === 0) {
+      throw new Error('未找到门店数据，请确认文件格式正确');
+    }
+
+    const total = Object.values(stores).reduce((sum, s) => sum + (s['总支付金额'] || 0), 0);
+
+    status.innerHTML = '✅ 解析成功！日期: ' + dateStr + '，' + storeOrder.length + ' 家门店，总金额 ¥' + total.toFixed(2);
+
     // 合并到本地DATA
-    DATA[result.date] = result.data;
-    for (const name of result.store_order) {
+    DATA[dateStr] = stores;
+    for (const name of storeOrder) {
       if (!allStores.find(s => s.name === name)) {
         allStores.push({ name });
       }
     }
-
-    status.innerHTML = '✅ 解析成功！日期: ' + result.date + '，' + result.store_count + ' 家门店，总金额 ¥' + result.total.toFixed(2);
 
     // 重新渲染
     window.__appInited = false;
@@ -206,7 +240,7 @@ async function handleUpload(file) {
     initApp();
 
   } catch (e) {
-    status.innerHTML = '❌ ' + e.message;
+    status.innerHTML = '❌ 解析失败: ' + e.message;
   }
 }// ══════════════════════════════════════
 // 密码验证
