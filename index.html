@@ -327,13 +327,30 @@ async function handleUpload(file) {
     
     if (rows.length < 3) throw new Error('文件格式错误，数据行不足');
     
-    const headers = rows[0].map(h => String(h).trim());
+    // 自动查找包含"日期"和"门店"的实际表头行
+    let headerRowIdx = 0;
+    let headers = [];
+    for (let i = 0; i < Math.min(rows.length, 10); i++) {
+      const row = rows[i].map(h => String(h).trim());
+      if (row.some(h => h.includes('日期')) && row.some(h => h.includes('门店'))) {
+        headerRowIdx = i;
+        headers = row;
+        break;
+      }
+    }
+    
+    // 如果没找到，尝试第一行
+    if (headers.length === 0) {
+      headers = rows[0].map(h => String(h).trim());
+    }
+    
     const storeData = {};
     let fileDate = '';
     
     // 调试：输出表头
+    console.log('Header row index:', headerRowIdx);
     console.log('Headers:', headers);
-    console.log('First data row (row 2):', rows[2]);
+    console.log('First data row:', rows[headerRowIdx + 1]);
     
     // 提取日期（支持Excel日期序列号、字符串、Date对象）
     const dateIdx = headers.findIndex(h => h.includes('日期'));
@@ -343,7 +360,7 @@ async function handleUpload(file) {
       throw new Error('找不到"日期"列，请检查Excel表头。当前表头: ' + headers.join(', '));
     }
     
-    let rawDate = rows[2][dateIdx];
+    let rawDate = rows[headerRowIdx + 1][dateIdx];
     console.log('Raw date value:', rawDate, 'type:', typeof rawDate);
     
     if (rawDate) {
@@ -376,8 +393,8 @@ async function handleUpload(file) {
       '微信支付': '微信支付', '支付宝': '支付宝', '采购': '采购'
     };
     
-    // 解析门店数据
-    for (let i = 2; i < rows.length; i++) {
+    // 解析门店数据（从表头下一行开始）
+    for (let i = headerRowIdx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row.length) continue;
       const name = String(row[headers.findIndex(h => h.includes('门店'))] || '').trim();
