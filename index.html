@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="utf-8">
@@ -117,7 +117,6 @@ tr:hover td{background:#f8f9fc}
     <div class="stat">
       <div class="stat-item"><div class="num" id="sStores">--</div><div class="label">门店数</div></div>
       <div class="stat-item"><div class="num" id="sDates">--</div><div class="label">数据天数</div></div>
-      <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
       <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
       <button class="upload-btn" onclick="document.getElementById('fileInput').click()">📁 上传数据</button>
       <input type="file" id="fileInput" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleUpload(this.files[0])">
@@ -432,26 +431,34 @@ async function handleUpload(file) {
     };
     
     // 解析门店数据（从表头下一行开始）
+    let storeCount = 0;
     for (let i = headerRowIdx + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row.length) continue;
       const name = String(row[headers.findIndex(h => h.includes('门店'))] || '').trim();
-      if (!name || name === 'undefined' || name === 'NaN') continue;
-      if (!storeData[fileDate]) storeData[fileDate] = {};
-      if (!storeData[fileDate][name]) {
-        storeData[fileDate][name] = { 总支付: 0, 美团外卖: 0, 抖音验券: 0, 微信支付: 0, 支付宝: 0, 采购: 0 };
+      // 每行取自己的日期（如果有日期列），否则用文件级fileDate
+      let rowDate = fileDate;
+      if (dateIdx !== -1 && row[dateIdx] != null) {
+        const parsed = parseExcelDate(row[dateIdx]);
+        if (parsed) rowDate = parsed;
+      }
+      if (!storeData[rowDate]) storeData[rowDate] = {};
+      if (!storeData[rowDate][name]) {
+        storeData[rowDate][name] = { 总支付: 0, 美团外卖: 0, 抖音验券: 0, 微信支付: 0, 支付宝: 0, 采购: 0 };
       }
       for (const [src, tgt] of Object.entries(chMap)) {
         const idx = headers.indexOf(src);
         if (idx !== -1) {
           const v = parseFloat(row[idx]);
-          if (!isNaN(v)) storeData[fileDate][name][tgt] += v;
+          if (!isNaN(v)) storeData[rowDate][name][tgt] += v;
         }
       }
     }
     
-    const storeCount = Object.keys(storeData[fileDate] || {}).length;
-    if (storeCount === 0) throw new Error('未解析到门店数据');
+    // 统计所有日期的门店总数
+    for (const ds of Object.keys(storeData)) {
+      storeCount = Math.max(storeCount, Object.keys(storeData[ds]).length);
+    }
     
     st.innerHTML = "上传中...";
     
@@ -474,7 +481,7 @@ async function handleUpload(file) {
     allStores = [];
     window.__appInited = false;
     initApp();
-    st.innerHTML = "✓ 上传成功! " + fileDate + " " + storeCount + "门店";
+    st.innerHTML = "✓ 上传成功! " + Object.keys(storeData).join(", ") + " " + storeCount + "门店";
   } catch(e) { 
     console.error(e);
     st.innerHTML = "ERR: " + e.message; 
