@@ -1,11 +1,10 @@
 // api/upload.js - Vercel Serverless Function
 const XLSX = require('xlsx');
 
-export default async function handler(req, res) {
-  // CORS
+module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-vercel-fallback');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -17,7 +16,6 @@ export default async function handler(req, res) {
 
   try {
     const contentType = req.headers['content-type'] || '';
-    
     const boundary = contentType.split('boundary=')[1];
     if (!boundary) {
       return res.status(400).json({ error: '无效的请求格式' });
@@ -29,47 +27,37 @@ export default async function handler(req, res) {
     }
     const body = Buffer.concat(chunks);
     
-    const boundaryStr = '--' + boundary;
-    const parts = body.toString('latin1').split(boundaryStr);
+    const parts = body.toString('latin1').split('--' + boundary);
     
     let fileBuffer = null;
     let fileName = '';
     let authToken = '';
 
     for (const part of parts) {
-      if (part.startsWith('--')) continue;
-      if (part.includes('Content-Disposition')) {
-        const isAuth = part.includes('name="auth"');
-        const isFile = part.includes('name="file"');
-        const nameMatch = part.match(/filename="([^"]+)"/);
-        
-        if (isAuth) {
-          const authMatch = part.match(/\r\n\r\n([\s\S]*?)\r\n--/);
-          if (authMatch) authToken = authMatch[1].trim();
-        } else if (isFile && nameMatch) {
-          fileName = nameMatch[1];
-          const headerEnd = part.indexOf('\r\n\r\n');
-          const dataStart = part.indexOf('\r\n\r\n') + 4;
-          const dataEnd = part.lastIndexOf('\r\n');
-          const fileData = part.substring(dataStart, dataEnd);
-          
-          const bytes = [];
-          for (let i = 0; i < fileData.length; i++) {
-            bytes.push(fileData.charCodeAt(i));
-          }
-          fileBuffer = Buffer.from(bytes);
-        }
+      if (part.startsWith('--') || !part.includes('Content-Disposition')) continue;
+      
+      const isAuth = part.includes('name="auth"');
+      const isFile = part.includes('name="file"');
+      const nameMatch = part.match(/filename="([^"]+)"/);
+      
+      if (isAuth) {
+        const authMatch = part.match(/\r\n\r\n([\s\S]*?)\r\n--/);
+        if (authMatch) authToken = authMatch[1].trim();
+      } else if (isFile && nameMatch) {
+        fileName = nameMatch[1];
+        const dataStart = part.indexOf('\r\n\r\n') + 4;
+        const dataEnd = part.lastIndexOf('\r\n');
+        const fileData = part.substring(dataStart, dataEnd);
+        fileBuffer = Buffer.from(fileData, 'latin1');
       }
     }
 
     if (authToken !== 'ft2024') {
       return res.status(403).json({ error: '密码错误' });
     }
-
     if (!fileBuffer) {
       return res.status(400).json({ error: '没有文件' });
     }
-
     if (!fileName.match(/\.(xls|xlsx)$/i)) {
       return res.status(400).json({ error: '只支持.xls/.xlsx文件' });
     }
@@ -98,18 +86,15 @@ export default async function handler(req, res) {
       if (!row || !row[0]) continue;
       const name = String(row[0]).trim();
       if (!name || name === '汇总') continue;
-
       const storeData = {};
       for (let c = 1; c <= 20 && c < row.length; c++) {
-        if (colNames[c-1]) {
-          storeData[colNames[c-1]] = typeof row[c] === 'number' ? row[c] : 0;
-        }
+        if (colNames[c-1]) storeData[colNames[c-1]] = typeof row[c] === 'number' ? row[c] : 0;
       }
       stores[name] = storeData;
       storeOrder.push(name);
     }
 
-    return res.status(200).json({
+    return res.json({
       ok: true,
       date: dateStr,
       store_count: Object.keys(stores).length,
@@ -122,4 +107,4 @@ export default async function handler(req, res) {
     console.error('Upload error:', err);
     return res.status(500).json({ error: '解析失败: ' + err.message });
   }
-}
+};
