@@ -1,9 +1,7 @@
 // api/upload.js - Vercel Serverless Function
-// 解析上传的 .xls 文件并返回门店数据
-
 const XLSX = require('xlsx');
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
@@ -20,7 +18,6 @@ module.exports = async (req, res) => {
   try {
     const contentType = req.headers['content-type'] || '';
     
-    // 手动解析 multipart form data
     const boundary = contentType.split('boundary=')[1];
     if (!boundary) {
       return res.status(400).json({ error: '无效的请求格式' });
@@ -32,7 +29,6 @@ module.exports = async (req, res) => {
     }
     const body = Buffer.concat(chunks);
     
-    // 找到文件数据部分
     const boundaryStr = '--' + boundary;
     const parts = body.toString('latin1').split(boundaryStr);
     
@@ -48,7 +44,6 @@ module.exports = async (req, res) => {
         const nameMatch = part.match(/filename="([^"]+)"/);
         
         if (isAuth) {
-          // 提取auth字段
           const authMatch = part.match(/\r\n\r\n([\s\S]*?)\r\n--/);
           if (authMatch) authToken = authMatch[1].trim();
         } else if (isFile && nameMatch) {
@@ -58,7 +53,6 @@ module.exports = async (req, res) => {
           const dataEnd = part.lastIndexOf('\r\n');
           const fileData = part.substring(dataStart, dataEnd);
           
-          // 转回 Buffer
           const bytes = [];
           for (let i = 0; i < fileData.length; i++) {
             bytes.push(fileData.charCodeAt(i));
@@ -68,7 +62,6 @@ module.exports = async (req, res) => {
       }
     }
 
-    // 验证密码
     if (authToken !== 'ft2024') {
       return res.status(403).json({ error: '密码错误' });
     }
@@ -81,28 +74,24 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: '只支持.xls/.xlsx文件' });
     }
 
-    // 解析Excel
     const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-    // 提取日期（第一行第一列）
     let dateStr = '';
     if (rows[1] && rows[1][0]) {
       const rawDate = String(rows[1][0]);
       dateStr = rawDate.split('-')[0].trim();
-      // 尝试从Excel日期数值转换
       if (!isNaN(Number(rawDate)) && Number(rawDate) > 40000) {
         const d = new Date((Number(rawDate) - 25569) * 86400 * 1000);
         dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
       }
     }
 
-    // 解析门店数据（从第4行开始）
     const stores = {};
     const storeOrder = [];
-    const channels = ['总支付金额','美团验券','美团验券笔数','采购','微信支付','微信支付笔数','支付宝','支付宝笔数','现金','现金笔数','京东外卖','京东外卖笔数','美团外卖','美团外卖笔数','淘宝闪购','淘宝闪购笔数','美团验券','美团验券笔数','抖音外卖','抖音外卖笔数'];
+    const colNames = ['总支付金额','美团验券','美团验券笔数','采购','微信支付','微信支付笔数','支付宝','支付宝笔数','现金','现金笔数','京东外卖','京东外卖笔数','美团外卖','美团外卖笔数','淘宝闪购','淘宝闪购笔数','美团验券','美团验券笔数','抖音外卖','抖音外卖笔数'];
 
     for (let i = 3; i < rows.length; i++) {
       const row = rows[i];
@@ -112,7 +101,6 @@ module.exports = async (req, res) => {
 
       const storeData = {};
       for (let c = 1; c <= 20 && c < row.length; c++) {
-        const colNames = ['总支付金额','美团验券','美团验券笔数','采购','微信支付','微信支付笔数','支付宝','支付宝笔数','现金','现金笔数','京东外卖','京东外卖笔数','美团外卖','美团外卖笔数','淘宝闪购','淘宝闪购笔数','美团验券','美团验券笔数','抖音外卖','抖音外卖笔数'];
         if (colNames[c-1]) {
           storeData[colNames[c-1]] = typeof row[c] === 'number' ? row[c] : 0;
         }
@@ -134,4 +122,4 @@ module.exports = async (req, res) => {
     console.error('Upload error:', err);
     return res.status(500).json({ error: '解析失败: ' + err.message });
   }
-};
+}
