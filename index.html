@@ -234,7 +234,7 @@ async function handleUpload(file) {
   }
 
 function init() {
-  const seen = {};
+  allStores = []; const seen = {};
   for (const dt of dates) {
     for (const name in DATA[dt]) {
       if (!seen[name]) {
