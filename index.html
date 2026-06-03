@@ -291,6 +291,7 @@ let allStores = [];
 
 // 初始化应用（密码验证后调用）
 async function initApp() {
+      allData = {}; // 清空防止双倍
   if (window.__appInited) return;
   window.__appInited = true;
   try {
