@@ -1,10 +1,11 @@
 // api/upload.js - Vercel Serverless Function
 const XLSX = require('xlsx');
+const busboy = require('busboy');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-vercel-fallback');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -15,47 +16,34 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const contentType = req.headers['content-type'] || '';
-    const boundary = contentType.split('boundary=')[1];
-    if (!boundary) {
-      return res.status(400).json({ error: '无效的请求格式' });
-    }
-
-    const chunks = [];
-    for await (const chunk of req) {
-      chunks.push(chunk);
-    }
-    const body = Buffer.concat(chunks);
-    
-    const parts = body.toString('latin1').split('--' + boundary);
+    const bb = busboy({ headers: req.headers });
     
     let fileBuffer = null;
     let fileName = '';
     let authToken = '';
 
-    for (const part of parts) {
-      if (part.startsWith('--') || !part.includes('Content-Disposition')) continue;
-      
-      const isAuth = part.includes('name="auth"');
-      const isFile = part.includes('name="file"');
-      const nameMatch = part.match(/filename="([^"]+)"/);
-      
-      if (isAuth) {
-        const authMatch = part.match(/\r\n\r\n([\s\S]*?)\r\n--/);
-        if (authMatch) authToken = authMatch[1].trim();
-      } else if (isFile && nameMatch) {
-        fileName = nameMatch[1];
-        const dataStart = part.indexOf('\r\n\r\n') + 4;
-        const dataEnd = part.lastIndexOf('\r\n');
-        const fileData = part.substring(dataStart, dataEnd);
-        fileBuffer = Buffer.from(fileData, 'latin1');
-      }
-    }
+    bb.on('file', (name, stream, info) => {
+      fileName = info.filename;
+      const chunks = [];
+      stream.on('data', d => chunks.push(d));
+      stream.on('end', () => { fileBuffer = Buffer.concat(chunks); });
+    });
 
-    // 临时调试：打印收到的auth值
-    console.log('DEBUG auth token:', JSON.stringify(authToken));
+    bb.on('field', (name, val) => {
+      if (name === 'auth') authToken = val.trim();
+    });
+
+    await new Promise((resolve, reject) => {
+      bb.on('finish', resolve);
+      bb.on('error', reject);
+      // Vercel 的 req 是 IncomingMessage，可以直接 pipe
+      req.pipe(bb);
+    });
+
+    console.log('DEBUG auth:', JSON.stringify(authToken), 'file:', fileName);
+
     if (authToken !== 'ft2024') {
-      return res.status(403).json({ error: '密码错误 [debug:' + authToken + ']' });
+      return res.status(403).json({ error: '密码错误' });
     }
     if (!fileBuffer) {
       return res.status(400).json({ error: '没有文件' });
