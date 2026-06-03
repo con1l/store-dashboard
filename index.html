@@ -172,29 +172,6 @@ tr:hover td{background:#f8f9fc}
 
 <script src="libs/xlsx.full.min.js"></script>
 <script>
-// 全局错误捕获：防止JS报错导致页面功能全部失效
-window.onerror = function(msg, src, line, col, err) {
-  console.error('JS Error:', msg, 'at line', line);
-  return false;
-};
-// 防止 checkAuth 未定义（缓存旧版本时）
-window.checkAuth = window.checkAuth || function() {
-  var input = document.getElementById('authInput');
-  if (!input) return alert('页面加载异常，请 Ctrl+Shift+R 强制刷新');
-  var v = input.value.trim();
-  if (v === 'ft2024') {
-    localStorage.setItem('dash_auth','1');
-    document.getElementById('authLayer').style.display='none';
-    document.getElementById('appContent').style.display='block';
-    // 尝试初始化
-    if (typeof initApp === 'function') initApp();
-    else if (typeof init === 'function') init();
-  } else {
-    var el = document.getElementById('authErr');
-    if (el) { el.style.display='block'; el.textContent='密码错误，请重试'; }
-    input.value=''; input.focus();
-  }
-};
 // ══════════════════════════════════════
 // 数据（由Python脚本生成）
 // ══════════════════════════════════════
