@@ -2,6 +2,13 @@
 <html lang="zh">
 <head>
 <meta charset="utf-8">
+<script type="importmap">
+{
+  "imports": {
+    "xlsx": "https://esm.sh/xlsx@0.18.5"
+  }
+}
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>饭团姐姐门店数据看板</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -110,7 +117,7 @@ tr:hover td{background:#f8f9fc}
       <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
       <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
       <button class="upload-btn" onclick="document.getElementById('fileInput').click()">📁 上传数据</button>
-      <input type="file" id="fileInput" accept=".json,.csv,.tsv,.txt" style="display:none" onchange="handleUpload(this.files[0])">
+      <input type="file" id="fileInput" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleUpload(this.files[0])">
     </div>
   </div>
   <div id="uploadStatus" style="display:none;background:#fff;padding:14px 20px;border-radius:12px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)"></div>
@@ -167,48 +174,25 @@ function initApp() {
 }
 
 // ──────────────────────────────────────────────
-// 支持JSON和CSV上传（100%可靠，无需外部库）
+// 用ESM动态导入SheetJS解析Excel（支持.xls和.xlsx）
 // ──────────────────────────────────────────────
 async function handleUpload(file) {
   if (!file) return;
   const status = document.getElementById('uploadStatus');
   status.style.display = 'block';
-  status.innerHTML = '⏳ 正在解析文件...';
+  status.innerHTML = '⏳ 正在加载解析库...';
 
   try {
-    const name = file.name.toLowerCase();
-    let rows = [];
+    // 动态导入SheetJS
+    const XLSX = await import('xlsx');
 
-    if (name.endsWith('.json')) {
-      const text = await file.text();
-      const json = JSON.parse(text);
-      if (json.data && json.date) {
-        DATA[json.date] = json.data;
-        for (const n of (json.store_order || Object.keys(json.data))) {
-          if (!allStores.find(s => s.name === n)) allStores.push({ name: n });
-        }
-        const total = Object.values(json.data).reduce((sum, s) => sum + (s['总支付金额']||0), 0);
-        status.innerHTML = '✅ 导入成功！日期: ' + json.date + '，' + Object.keys(json.data).length + ' 家门店，总金额 ¥' + total.toFixed(2);
-        window.__appInited = false; window.__charts = null; initApp();
-        return;
-      }
-      throw new Error('JSON格式不正确');
-    }
-    else if (name.endsWith('.csv') || name.endsWith('.tsv') || name.endsWith('.txt')) {
-      const text = await file.text();
-      const lines = text.split(/\r?\n/).filter(l => l.trim());
-      const sep = text.includes('\t') ? '\t' : ',';
-      rows = lines.map(line => line.split(sep).map(cell => {
-        cell = cell.trim().replace(/^"|"$/g, '');
-        const num = parseFloat(cell);
-        return isNaN(num) ? cell : num;
-      }));
-    }
-    else {
-      throw new Error('请上传 .json 或 .csv 文件');
-    }
+    status.innerHTML = '⏳ 正在解析文件...';
 
-    if (rows.length < 4) throw new Error('文件数据不足');
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
     let dateStr = '';
     if (rows[1] && rows[1][0] !== undefined) dateStr = String(rows[1][0]).split('-')[0].trim();
@@ -239,7 +223,7 @@ async function handleUpload(file) {
     window.__appInited = false; window.__charts = null; initApp();
 
   } catch (e) {
-    status.innerHTML = '❌ ' + e.message;
+    status.innerHTML = '❌ 解析失败: ' + e.message;
   }
 }// ══════════════════════════════════════
 // 密码验证
