@@ -1,153 +1,3 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>饭团姐姐门店数据看板</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f0f2f5;color:#222}
-
-/* 密码验证层 */
-#authLayer{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#4472C4 0%,#2a4a7a 100%);z-index:9999;display:flex;align-items:center;justify-content:center}
-.auth-box{background:#fff;padding:40px 48px;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;min-width:320px}
-.auth-box h2{font-size:20px;color:#1a1a1a;margin-bottom:8px}
-.auth-box p{color:#888;font-size:13px;margin-bottom:24px}
-.auth-box input{width:100%;padding:12px 16px;font-size:15px;border:2px solid #e8e8e8;border-radius:10px;outline:none;margin-bottom:16px;text-align:center;letter-spacing:2px}
-.auth-box input:focus{border-color:#4472C4}
-.auth-box button{width:100%;padding:12px 24px;font-size:15px;background:#4472C4;color:#fff;border:none;border-radius:10px;cursor:pointer;transition:.2s}
-.auth-box button:hover{background:#3560a8}
-.auth-box .err{color:#f5222d;font-size:13px;margin-top:12px;display:none}
-#appContent{display:none}
-
-.upload-btn{padding:8px 20px;font-size:14px;background:#52c41a;color:#fff;border:none;border-radius:8px;cursor:pointer;transition:.2s;white-space:nowrap}
-.upload-btn:hover{background:#45a612}
-.wrap{max-width:1200px;margin:0 auto;padding:20px}
-
-.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;background:#fff;padding:20px 28px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.header h1{font-size:22px;color:#1a1a1a}
-.header h1 span{color:#4472C4}
-.header .stat{display:flex;gap:32px}
-.header .stat-item{text-align:center}
-.header .stat-item .num{font-size:26px;font-weight:700;color:#4472C4}
-.header .stat-item .label{font-size:12px;color:#888;margin-top:2px}
-
-.search-bar{margin-bottom:20px}
-.search-bar input{width:100%;padding:11px 16px;font-size:15px;border:2px solid #e8e8e8;border-radius:10px;outline:none;font-family:inherit;transition:border-color .2s}
-.search-bar input:focus{border-color:#4472C4}
-
-.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-.chart-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.chart-card h3{font-size:15px;color:#333;margin-bottom:14px}
-
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;margin-bottom:20px}
-.card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06);transition:.2s;cursor:pointer}
-.card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12)}
-.card h4{font-size:14px;color:#333;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.card .card-num{font-size:28px;font-weight:700;color:#1a1a1a;margin:6px 0 2px}
-.card .card-sub{font-size:12px;color:#999}
-
-.daily-table{background:#fff;border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow-x:auto;margin-bottom:20px}
-.daily-table h3{font-size:15px;color:#333;margin-bottom:14px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th{background:#4472C4;color:#fff;padding:10px 12px;text-align:right;white-space:nowrap}
-th:first-child{text-align:left}
-td{padding:9px 12px;text-align:right;border-bottom:1px solid #f0f0f0}
-td:first-child{text-align:left;color:#333;font-weight:500}
-tr:hover td{background:#f8f9fc}
-.sum-row td{background:#fff8e1;font-weight:600}
-
-.store-list{background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);margin-bottom:20px}
-.store-list h3{font-size:15px;color:#333;margin-bottom:10px}
-.store-row{display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:1px solid #f5f5f5;cursor:pointer;transition:.15s}
-.store-row:hover{background:#f8f9fc}
-.store-row:last-child{border-bottom:none}
-.store-row .sn{font-size:13px;color:#333;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.store-row .sv{font-size:15px;font-weight:700;color:#1a1a1a;margin-left:12px}
-
-/* 详情页 */
-.detail-view{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#f0f2f5;z-index:100;overflow-y:auto}
-.detail-view.active{display:block}
-.detail-wrap{max-width:1100px;margin:0 auto;padding:20px}
-.back-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:#fff;border-radius:8px;text-decoration:none;color:#4472C4;font-size:14px;margin-bottom:16px;cursor:pointer;border:none;font-family:inherit}
-.back-btn:hover{background:#f0f5ff}
-.title-box{background:#fff;border-radius:12px;padding:24px 28px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.title-box h1{font-size:22px;color:#1a1a1a;margin-bottom:4px}
-.title-box .sub{font-size:13px;color:#888}
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:20px}
-.stat-c{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.stat-c .sl{font-size:12px;color:#888;margin-bottom:6px}
-.stat-c .sv{font-size:22px;font-weight:700;color:#1a1a1a}
-.stat-c .sc{font-size:12px;margin-top:4px}
-.stat-c .sc.up{color:#52c41a}.stat-c .sc.down{color:#f5222d}.stat-c .sc.neu{color:#999}
-</style>
-</head>
-<body>
-
-<!-- 密码验证层 -->
-<div id="authLayer">
-  <div class="auth-box">
-    <h2>🔒 饭团姐姐数据看板</h2>
-    <p>请输入访问密码</p>
-    <input type="password" id="authInput" placeholder="******" maxlength="20" onkeydown="if(event.key==='Enter')checkAuth()">
-    <button onclick="checkAuth()">进入看板</button>
-    <div class="err" id="authErr">密码错误，请重试</div>
-  </div>
-</div>
-
-<!-- 主应用内容 -->
-<div id="appContent">
-
-<!-- ========== 主页 ========== -->
-<div class="wrap" id="mainView">
-  <div class="header">
-    <h1>🍙 <span>饭团姐姐</span> 门店数据看板</h1>
-    <div class="stat">
-      <div class="stat-item"><div class="num" id="sStores">--</div><div class="label">门店数</div></div>
-      <div class="stat-item"><div class="num" id="sDates">--</div><div class="label">数据天数</div></div>
-      <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
-      <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
-      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">📁 上传数据</button>
-      <input type="file" id="fileInput" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleUpload(this.files[0])">
-    </div>
-  </div>
-  <div id="uploadStatus" style="display:none;background:#fff;padding:14px 20px;border-radius:12px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)"></div>
-
-  <div class="search-bar">
-    <input type="text" placeholder="🔍 搜索门店名称..." oninput="filterS()">
-  </div>
-
-  <div class="charts" id="overviewCharts"></div>
-
-  <div class="grid" id="topGrid"></div>
-
-  <div class="daily-table" id="dailyTableWrap" style="display:none">
-    <h3>📊 每日汇总</h3>
-    <table><thead><tr id="dailyHead"></tr></thead><tbody id="dailyBody"></tbody></table>
-  </div>
-
-  <div class="store-list" id="storeListWrap" style="display:none">
-    <h3>🏪 所有门店</h3>
-    <div id="storeRows"></div>
-  </div>
-</div>
-
-<!-- ========== 详情页 ========== -->
-<div class="detail-view" id="detailView">
-  <div class="detail-wrap">
-    <button class="back-btn" onclick="closeDetail()">← 返回看板</button>
-    <div class="title-box"><h1 id="dTitle">🏪 --</h1><div class="sub" id="dSub"></div></div>
-    <div class="stats-grid" id="dStats"></div>
-    <div class="charts"><div class="chart-card"><h3>各渠道金额对比</h3><canvas id="dcBar" height="140"></canvas></div><div class="chart-card"><h3>渠道占比</h3><canvas id="dcPie" height="140"></canvas></div></div>
-    <div class="charts"><div class="chart-card"><h3>总支付金额趋势</h3><canvas id="dcTrend" height="100"></canvas></div><div class="chart-card"><h3>外卖渠道趋势</h3><canvas id="dcDeliv" height="100"></canvas></div></div>
-    <div class="daily-table"><h3>每日明细</h3><table><thead><tr id="dtHead"></tr></thead><tbody id="dtBody"></tbody></table></div>
-  </div>
-</div>
-
-<script src="libs/xlsx.full.min.js"></script>
-<script>
 // ══════════════════════════════════════
 // 数据（由Python脚本生成）
 // ══════════════════════════════════════
@@ -172,30 +22,52 @@ function initApp() {
 // ──────────────────────────────────────────────
 async function handleUpload(file) {
   if (!file) return;
-  const st = document.getElementById("uploadStatus");
-  st.style.display = "block"; st.innerHTML = "Parsing...";
+  const status = document.getElementById('uploadStatus');
+  status.style.display = 'block';
+  status.innerHTML = 'Parsing...';
+
   try {
-    if (typeof XLSX === "undefined") throw new Error("No SheetJS");
+    if (typeof XLSX === 'undefined') throw new Error('SheetJS not loaded');
     const data = await file.arrayBuffer();
-    const wb = XLSX.read(data, {type:"array"});
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1});
-    let ds = ""; if (rows[1]&&rows[1][0]!==undefined) ds=String(rows[1][0]).split("-")[0].trim();
-    const stores={}; const so=[];
-    const cn=["总支付金额","美团验券","美团验券笔数","采购","微信支付","微信支付笔数","支付宝","支付宝笔号","现金","现金笔数","京东外卖","京东外卖笔数","美团外卖","美团外卖笔数","淘宝闪购","淘宝闪购笔数","美团验券","美团验券笔数","抖音外卖","抖音外卖笔数"];
-    for(let i=3;i<rows.length;i++){const r=rows[i];if(!r||!r[0])continue;const n=String(r[0]).trim();if(!n||n==="汇总")continue;const sd={};for(let c=1;c<=20&&c<r.length;c++){if(cn[c-1]){const v=parseFloat(r[c]);sd[cn[c-1]]=isNaN(v)?0:v;}}stores[n]=sd;so.push(n);}
-    if(so.length===0) throw new Error("No data");
-    const tot=Object.values(stores).reduce((s,x)=>s+(x["总支付金额"]||0),0);
-    st.innerHTML="OK! "+ds+" "+so.length+"st Y"+tot.toFixed(2);
-    DATA[ds]=stores;
-    for(const n of so){if(!allStores.find(s=>s.name===n)) allStores.push({name:n});}
-    window.__appInited=false; window.__charts=null; initApp();
-  } catch(e) { st.innerHTML="ERR: "+e.message; }
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    let dateStr = '';
+    if (rows[1] && rows[1][0] !== undefined) dateStr = String(rows[1][0]).split('-')[0].trim();
+
+    const stores = {};
+    const storeOrder = [];
+    const colNames = ['总支付金额','美团验券','美团验券笔数','采购','微信支付','微信支付笔数','支付宝','支付宝笔数','现金','现金笔数','京东外卖','京东外卖笔数','美团外卖','美团外卖笔数','淘宝闪购','淘宝闪购笔数','美团验券','美团验券笔数','抖音外卖','抖音外卖笔数'];
+
+    for (let i = 3; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || !row[0]) continue;
+      const n = String(row[0]).trim();
+      if (!n || n === '汇总') continue;
+      const sd = {};
+      for (let c = 1; c <= 20 && c < row.length; c++) {
+        if (colNames[c-1]) { const v = parseFloat(row[c]); sd[colNames[c-1]] = isNaN(v) ? 0 : v; }
+      }
+      stores[n] = sd; storeOrder.push(n);
+    }
+
+    if (storeOrder.length === 0) throw new Error('No data');
+
+    const total = Object.values(stores).reduce((sum, s) => sum + (s['总支付金额']||0), 0);
+    status.innerHTML = 'OK! ' + dateStr + ' ' + storeOrder.length + ' stores Y' + total.toFixed(2);
+
+    DATA[dateStr] = stores;
+    for (const n of storeOrder) { if (!allStores.find(s => s.name === n)) allStores.push({ name: n }); }
+    window.__appInited = false; window.__charts = null; initApp();
+  } catch (e) {
+    status.innerHTML = 'ERR: ' + e.message;
   }
+}
 
 
-
-(function init() {
+function init() {
   const seen = {};
   for (const dt of dates) {
     for (const name in DATA[dt]) {
@@ -222,7 +94,7 @@ async function handleUpload(file) {
   renderOverviewCharts();
   renderDailyTable();
   renderStoreList();
-})();
+
 
 // ── Top卡片 ──
 function renderTopCards() {
@@ -391,7 +263,3 @@ if(localStorage.getItem(AUTH_KEY)==='1'){
 }else{
   document.getElementById('authInput').focus();
 }
-</script>
-</div><!-- /appContent -->
-</body>
-</html>

@@ -1,0 +1,7 @@
+='1'){
+  document.getElementById('authLayer').style.display='none';
+  document.getElementById('appContent').style.display='block';
+  initApp();
+}else{
+  document.getElementById('authInput').focus();
+}

@@ -1,0 +1,79 @@
+async function handleUpload(file) {
+  if (!file) return;
+  const status = document.getElementById('uploadStatus');
+  status.style.display = 'block';
+  status.innerHTML = '⏳ 正在解析文件...';
+
+  try {
+    // 前端用SheetJS解析Excel
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    // 提取日期
+    let dateStr = '';
+    if (rows[1] && rows[1][0]) {
+      const rawDate = String(rows[1][0]);
+      dateStr = rawDate.split('-')[0].trim();
+      if (!isNaN(Number(rawDate)) && Number(rawDate) > 40000) {
+        const d = new Date((Number(rawDate) - 25569) * 86400 * 1000);
+        dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+      }
+    }
+
+    // 解析门店数据
+    const stores = {};
+    const storeOrder = [];
+    const colNames = ['总支付金额','美团验券','美团验券笔数','采购','微信支付','微信支付笔数','支付宝','支付宝笔数','现金','现金笔数','京东外卖','京东外卖笔数','美团外卖','美团外卖笔数','淘宝闪购','淘宝闪购笔数','美团验券','美团验券笔数','抖音外卖','抖音外卖笔数'];
+
+    for (let i = 3; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || !row[0]) continue;
+      const name = String(row[0]).trim();
+      if (!name || name === '汇总') continue;
+      const storeData = {};
+      for (let c = 1; c <= 20 && c < row.length; c++) {
+        if (colNames[c-1]) storeData[colNames[c-1]] = typeof row[c] === 'number' ? row[c] : 0;
+      }
+      stores[name] = storeData;
+      storeOrder.push(name);
+    }
+
+    const total = Object.values(stores).reduce((sum, s) => sum + (s['总支付金额'] || 0), 0);
+
+    status.innerHTML = `✅ 解析成功！日期: ${dateStr}，${storeOrder.length} 家门店，总金额 ¥${total.toFixed(2)}`;
+
+    // 合并到本地DATA
+    DATA[dateStr] = stores;
+    for (const name of storeOrder) {
+      if (!allStores.find(s => s.name === name)) {
+        allStores.push({ name });
+      }
+    }
+
+    // 重新渲染
+    window.__appInited = false;
+    window.__charts = null;
+    initApp();
+
+  } catch (e) {
+    status.innerHTML = `❌ 解析失败: ${e.message}`;
+  }
+}
+
+
+(function init() {
+  const seen = {};
+  for (const dt of dates) {
+    for (const name in DATA[dt]) {
+      if (!seen[name]) {
+        seen[name] = true;
+        const totals = {};
+        for (const ch of channels) {
+          let s = 0;
+          for (const d of dates) { s += (DATA[d][name]||{})[ch]||0; }
+          totals[ch] = Math.round(s*100)/100;
+        }
+        allStore

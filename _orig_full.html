@@ -110,7 +110,7 @@ tr:hover td{background:#f8f9fc}
       <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
       <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
       <button class="upload-btn" onclick="document.getElementById('fileInput').click()">📁 上传数据</button>
-      <input type="file" id="fileInput" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleUpload(this.files[0])">
+      <input type="file" id="fileInput" accept=".xls,.xlsx" style="display:none" onchange="handleUpload(this.files[0])">
     </div>
   </div>
   <div id="uploadStatus" style="display:none;background:#fff;padding:14px 20px;border-radius:12px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)"></div>
@@ -146,7 +146,6 @@ tr:hover td{background:#f8f9fc}
   </div>
 </div>
 
-<script src="libs/xlsx.full.min.js"></script>
 <script>
 // ══════════════════════════════════════
 // 数据（由Python脚本生成）
@@ -172,27 +171,68 @@ function initApp() {
 // ──────────────────────────────────────────────
 async function handleUpload(file) {
   if (!file) return;
-  const st = document.getElementById("uploadStatus");
-  st.style.display = "block"; st.innerHTML = "Parsing...";
-  try {
-    if (typeof XLSX === "undefined") throw new Error("No SheetJS");
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data, {type:"array"});
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1});
-    let ds = ""; if (rows[1]&&rows[1][0]!==undefined) ds=String(rows[1][0]).split("-")[0].trim();
-    const stores={}; const so=[];
-    const cn=["总支付金额","美团验券","美团验券笔数","采购","微信支付","微信支付笔数","支付宝","支付宝笔号","现金","现金笔数","京东外卖","京东外卖笔数","美团外卖","美团外卖笔数","淘宝闪购","淘宝闪购笔数","美团验券","美团验券笔数","抖音外卖","抖音外卖笔数"];
-    for(let i=3;i<rows.length;i++){const r=rows[i];if(!r||!r[0])continue;const n=String(r[0]).trim();if(!n||n==="汇总")continue;const sd={};for(let c=1;c<=20&&c<r.length;c++){if(cn[c-1]){const v=parseFloat(r[c]);sd[cn[c-1]]=isNaN(v)?0:v;}}stores[n]=sd;so.push(n);}
-    if(so.length===0) throw new Error("No data");
-    const tot=Object.values(stores).reduce((s,x)=>s+(x["总支付金额"]||0),0);
-    st.innerHTML="OK! "+ds+" "+so.length+"st Y"+tot.toFixed(2);
-    DATA[ds]=stores;
-    for(const n of so){if(!allStores.find(s=>s.name===n)) allStores.push({name:n});}
-    window.__appInited=false; window.__charts=null; initApp();
-  } catch(e) { st.innerHTML="ERR: "+e.message; }
-  }
+  const status = document.getElementById('uploadStatus');
+  status.style.display = 'block';
+  status.innerHTML = '⏳ 正在解析文件...';
 
+  try {
+    // 前端用SheetJS解析Excel
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    // 提取日期
+    let dateStr = '';
+    if (rows[1] && rows[1][0]) {
+      const rawDate = String(rows[1][0]);
+      dateStr = rawDate.split('-')[0].trim();
+      if (!isNaN(Number(rawDate)) && Number(rawDate) > 40000) {
+        const d = new Date((Number(rawDate) - 25569) * 86400 * 1000);
+        dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+      }
+    }
+
+    // 解析门店数据
+    const stores = {};
+    const storeOrder = [];
+    const colNames = ['总支付金额','美团验券','美团验券笔数','采购','微信支付','微信支付笔数','支付宝','支付宝笔数','现金','现金笔数','京东外卖','京东外卖笔数','美团外卖','美团外卖笔数','淘宝闪购','淘宝闪购笔数','美团验券','美团验券笔数','抖音外卖','抖音外卖笔数'];
+
+    for (let i = 3; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || !row[0]) continue;
+      const name = String(row[0]).trim();
+      if (!name || name === '汇总') continue;
+      const storeData = {};
+      for (let c = 1; c <= 20 && c < row.length; c++) {
+        if (colNames[c-1]) storeData[colNames[c-1]] = typeof row[c] === 'number' ? row[c] : 0;
+      }
+      stores[name] = storeData;
+      storeOrder.push(name);
+    }
+
+    const total = Object.values(stores).reduce((sum, s) => sum + (s['总支付金额'] || 0), 0);
+
+    status.innerHTML = `✅ 解析成功！日期: ${dateStr}，${storeOrder.length} 家门店，总金额 ¥${total.toFixed(2)}`;
+
+    // 合并到本地DATA
+    DATA[dateStr] = stores;
+    for (const name of storeOrder) {
+      if (!allStores.find(s => s.name === name)) {
+        allStores.push({ name });
+      }
+    }
+
+    // 重新渲染
+    window.__appInited = false;
+    window.__charts = null;
+    initApp();
+
+  } catch (e) {
+    status.innerHTML = `❌ 解析失败: ${e.message}`;
+  }
+}
 
 
 (function init() {
