@@ -129,6 +129,7 @@ tr:hover td{background:#f8f9fc}
     <h3>📂 已上传文件</h3>
     <div id="fileTags"></div>
     <button class="upload-btn" style="padding:6px 14px;font-size:13px" onclick="document.getElementById('fileInput').click()">+ 添加文件</button>
+    <button class="upload-btn" style="padding:6px 14px;font-size:13px;background:#f5222d" onclick="clearAllData()">🗑 清空所有</button>
   </div>
 
   <div class="search-bar">
@@ -204,38 +205,72 @@ function renderFileList() {
   ).join('');
 }
 
-// 删除文件并从 DATA 中移除对应日期
-function removeFile(idx) {
+// 删除文件并从 DATA + KV 中移除对应日期
+async function removeFile(idx) {
   const files = loadFileList();
   if (idx < 0 || idx >= files.length) return;
   const removed = files[idx];
   files.splice(idx, 1);
   saveFileList(files);
   renderFileList();
-  // 重建 DATA
-  rebuildDataFromFiles(files);
+  // 同步删除 KV 中对应日期数据
+  try {
+    const dateToDelete = removed.date || (removed.data ? Object.keys(removed.data)[0] : null);
+    if (dateToDelete) {
+      await fetch('/api/delete?key=ft2024', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: dateToDelete })
+      });
+    }
+  } catch(e) { console.error('KV delete error:', e); }
+  // 重新从 KV 拉取最新数据
+  await refreshFromKV();
 }
 
-// 根据文件列表重建 DATA + allStores + dates
-function rebuildDataFromFiles(files) {
-  // 清空
+// 清空所有数据（KV + localStorage）
+async function clearAllData() {
+  if (!confirm('确定清空所有数据？此操作不可恢复！')) return;
+  try {
+    await fetch('/api/delete?key=ft2024', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clearAll: true })
+    });
+  } catch(e) { console.error('KV clear error:', e); }
+  localStorage.removeItem('ft2024_files');
   Object.keys(DATA).forEach(k => delete DATA[k]);
-  // 逐个解析存储的数据
-  for (const f of files) {
-    if (f.data) {
-      // f.data 是 { 日期: { 门店: {字段:值} } }
-      for (const [dt, stores] of Object.entries(f.data)) {
-        if (!DATA[dt]) DATA[dt] = {};
-        // 同日期：后上传的覆盖先上传的（merge）
-        Object.assign(DATA[dt], stores);
-      }
-    }
-  }
-  // 重建 dates
   dates.length = 0;
-  Object.keys(DATA).sort().forEach(k => dates.push(k));
+  allStores = [];
   window.__appInited = false;
   initApp();
+  renderFileList();
+}
+
+// 从 KV 拉取最新数据并刷新看板
+async function refreshFromKV() {
+  try {
+    const r = await fetch('/api/data?key=ft2024');
+    const j = await r.json();
+    Object.keys(DATA).forEach(k => delete DATA[k]);
+    Object.assign(DATA, j.data || {});
+    dates.length = 0;
+    dates.push(...Object.keys(DATA).sort());
+    allStores = [];
+    window.__appInited = false;
+    initApp();
+    // 同步 KV 文件列表到 localStorage
+    if (j.files && j.files.length) {
+      const localFiles = loadFileList();
+      for (const kf of j.files) {
+        if (!localFiles.find(lf => lf.date === kf.date)) {
+          localFiles.push(kf);
+        }
+      }
+      saveFileList(localFiles);
+      renderFileList();
+    }
+  } catch(e) { console.error('refreshFromKV error:', e); }
 }
 
 // 将解析好的数据存入 localStorage（只存关键数据，不存整个 DATA）
