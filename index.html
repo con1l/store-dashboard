@@ -327,21 +327,30 @@ async function handleUpload(file) {
     
     if (rows.length < 3) throw new Error('文件格式错误，数据行不足');
     
-    // 自动查找包含"日期"和"门店"的实际表头行
-    let headerRowIdx = 0;
+    // 自动查找实际表头行：跳过空行和"列N"格式的默认列名
+    let headerRowIdx = -1;
     let headers = [];
-    for (let i = 0; i < Math.min(rows.length, 10); i++) {
-      const row = rows[i].map(h => String(h).trim());
-      if (row.some(h => h.includes('日期')) && row.some(h => h.includes('门店'))) {
-        headerRowIdx = i;
-        headers = row;
-        break;
-      }
+    
+    // 先输出前15行的原始数据用于调试
+    console.log('=== 前15行原始数据 ===');
+    for (let i = 0; i < Math.min(15, rows.length); i++) {
+      console.log(`Row ${i}:`, rows[i]);
     }
     
-    // 如果没找到，尝试第一行
-    if (headers.length === 0) {
-      headers = rows[0].map(h => String(h).trim());
+    for (let i = 0; i < Math.min(rows.length, 20); i++) {
+      const row = rows[i];
+      if (!row || !row.length || row.every(c => c === '' || c == null)) continue; // 跳过空行
+      const strRow = row.map(h => String(h).trim());
+      // 跳过 "列1, 列2..." 这种 SheetJS 默认列名
+      if (strRow.every(h => /^\d+$/.test(h) || /^列\d+$/.test(h))) continue;
+      // 找到第一个有实际内容的行作为表头
+      headerRowIdx = i;
+      headers = strRow;
+      break;
+    }
+    
+    if (headers.length === 0 || headerRowIdx === -1) {
+      throw new Error('无法识别表头，Excel可能为空或格式异常');
     }
     
     const storeData = {};
