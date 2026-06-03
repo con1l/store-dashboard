@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>饭团姐姐门店数据看板</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f0f2f5;color:#222}
@@ -169,6 +168,75 @@ function initApp() {
 // ──────────────────────────────────────────────
 // 文件上传
 // ──────────────────────────────────────────────
+// 纯JS Excel/CSV 解析器（无外部依赖）
+// ──────────────────────────────────────────────
+function parseExcelFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const data = e.target.result;
+        let rows = [];
+        
+        // 尝试检测文件类型并解析
+        if (file.name.endsWith('.csv') || file.name.endsWith('.tsv')) {
+          // CSV/TSV: 按换行分割，再按分隔符分割
+          const lines = data.split(/\r?\n/).filter(l => l.trim());
+          rows = lines.map(line => {
+            // 自动检测分隔符
+            const sep = line.includes('\t') ? '\t' : ',';
+            return line.split(sep).map(cell => {
+              // 去掉引号
+              cell = cell.trim().replace(/^"|"$/g, '');
+              // 尝试转数字
+              const num = parseFloat(cell);
+              return isNaN(num) ? cell : num;
+            });
+          });
+        } else {
+          // Excel .xls/.xlsx: 用简单方式提取文本
+          // 从二进制中提取可读文本（适用于简单表格）
+          const text = extractTextFromBinary(data);
+          const lines = text.split('\n').filter(l => l.trim());
+          rows = lines.map(line => {
+            return line.split('\t').map(cell => {
+              cell = cell.trim();
+              const num = parseFloat(cell);
+              return isNaN(num) ? cell : num;
+            });
+          });
+        }
+        resolve(rows);
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = () => reject(new Error('文件读取失败'));
+    // 先尝试读取为文本，如果是二进制再处理
+    reader.readAsText(file, 'UTF-8');
+  });
+}
+
+// 从二进制数据中提取文本（简化版，适用于xls）
+function extractTextFromBinary(data) {
+  // 如果已经是字符串就直接返回
+  if (typeof data === 'string') return data;
+  
+  // 尝试从ArrayBuffer提取
+  if (data instanceof ArrayBuffer) {
+    const bytes = new Uint8Array(data);
+    let text = '';
+    for (let i = 0; i < bytes.length; i++) {
+      // 只保留可打印字符和常见中文范围
+      const b = bytes[i];
+      if (b >= 32 && b < 127) text += String.fromCharCode(b);
+      else if (b > 127 && b < 255) text += String.fromCharCode(b);
+      else if (b === 10 || b === 13 || b === 9) text += String.fromCharCode(b);
+    }
+    return text;
+  }
+  return data;
+}
+
+// ──────────────────────────────────────────────
 async function handleUpload(file) {
   if (!file) return;
   const status = document.getElementById('uploadStatus');
@@ -176,25 +244,19 @@ async function handleUpload(file) {
   status.innerHTML = '⏳ 正在解析文件...';
 
   try {
-    // 前端用SheetJS解析Excel
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-
-    // 提取日期
-    let dateStr = '';
-    if (rows[1] && rows[1][0]) {
-      const rawDate = String(rows[1][0]);
-      dateStr = rawDate.split('-')[0].trim();
-      if (!isNaN(Number(rawDate)) && Number(rawDate) > 40000) {
-        const d = new Date((Number(rawDate) - 25569) * 86400 * 1000);
-        dateStr = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-      }
+    const rows = await parseExcelFile(file);
+    
+    if (rows.length < 4) {
+      throw new Error('文件数据不足，请检查格式');
     }
 
-    // 解析门店数据
+    // 提取日期（第二行第一列）
+    let dateStr = '';
+    if (rows[1] && rows[1][0] !== undefined) {
+      dateStr = String(rows[1][0]).split('-')[0].trim();
+    }
+
+    // 解析门店数据（从第4行开始）
     const stores = {};
     const storeOrder = [];
     const colNames = ['总支付金额','美团验券','美团验券笔数','采购','微信支付','微信支付笔数','支付宝','支付宝笔数','现金','现金笔数','京东外卖','京东外卖笔数','美团外卖','美团外卖笔数','淘宝闪购','淘宝闪购笔数','美团验券','美团验券笔数','抖音外卖','抖音外卖笔数'];
@@ -206,10 +268,17 @@ async function handleUpload(file) {
       if (!name || name === '汇总') continue;
       const storeData = {};
       for (let c = 1; c <= 20 && c < row.length; c++) {
-        if (colNames[c-1]) storeData[colNames[c-1]] = typeof row[c] === 'number' ? row[c] : 0;
+        if (colNames[c-1]) {
+          const val = parseFloat(row[c]);
+          storeData[colNames[c-1]] = isNaN(val) ? 0 : val;
+        }
       }
       stores[name] = storeData;
       storeOrder.push(name);
+    }
+
+    if (storeOrder.length === 0) {
+      throw new Error('未找到门店数据，请确认文件格式正确');
     }
 
     const total = Object.values(stores).reduce((sum, s) => sum + (s['总支付金额'] || 0), 0);
