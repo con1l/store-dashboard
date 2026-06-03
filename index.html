@@ -313,6 +313,29 @@ function normalizeStoreKeys(storeData) {
   return normalized;
 }
 
+// 解析Excel日期值（支持序列号、字符串、Date对象）→ 返回 YYYY/MM/DD 格式
+function parseExcelDate(raw) {
+  if (!raw) return '';
+  let d = null;
+  if (typeof raw === 'number') {
+    d = new Date((raw - 25569) * 86400 * 1000);
+  } else if (raw instanceof Date) {
+    d = raw;
+  } else {
+    // 尝试直接解析字符串
+    const s = String(raw).trim();
+      // 已经是 YYYY/MM/DD 或 YYYY-MM-DD 格式
+      if (/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/.test(s)) {
+        return s.replace(/-/g, '/');
+      }
+      d = new Date(s);
+  }
+  if (d && !isNaN(d)) {
+    return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+  }
+  return '';
+}
+
 async function handleUpload(file) {
   if (!file) return;
   const st = document.getElementById("uploadStatus");
@@ -375,39 +398,32 @@ async function handleUpload(file) {
     console.log('Headers:', headers);
     console.log('First data row:', rows[headerRowIdx + 1]);
     
-    // 提取日期（支持Excel日期序列号、字符串、Date对象）
+    // 提取日期：优先从"日期"列取，如果没有则从标题行（日期范围行）解析
+    let fileDate = '';
     const dateIdx = headers.findIndex(h => h.includes('日期'));
     console.log('Date column index:', dateIdx);
     
-    if (dateIdx === -1) {
-      throw new Error('找不到"日期"列，请检查Excel表头。当前表头: ' + headers.join(', '));
-    }
-    
-    let rawDate = rows[headerRowIdx + 1][dateIdx];
-    console.log('Raw date value:', rawDate, 'type:', typeof rawDate);
-    
-    if (rawDate) {
-      let d = null;
-      // 如果是数字（Excel日期序列号）
-      if (typeof rawDate === 'number') {
-        // Excel日期序列号转换：1900-01-01基准，但有1900闰年bug
-        d = new Date((rawDate - 25569) * 86400 * 1000);
-      } else if (rawDate instanceof Date) {
-        d = rawDate;
-      } else {
-        // 字符串或其他格式
-        d = new Date(rawDate);
-      }
-      
-      if (d && !isNaN(d)) {
-        fileDate = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-        console.log('Parsed date:', fileDate);
+    if (dateIdx !== -1) {
+      // 表头中有"日期"列，从数据行取
+      let rawDate = rows[headerRowIdx + 1][dateIdx];
+      console.log('Raw date value from column:', rawDate, 'type:', typeof rawDate);
+      fileDate = parseExcelDate(rawDate);
+    } else if (looksLikeDateRange && candidateRows.length >= 2) {
+      // 表头中没有"日期"列，从第一行（日期范围行）解析，如 "2026/05/30-2026/05/31"
+      const dateRangeStr = candidateRows[0].row.join(' ').trim();
+      console.log('Parsing date from title row:', dateRangeStr);
+      // 提取第一个日期（支持 YYYY/MM/DD 和 YYYY-MM-DD 格式）
+      const dateMatch = dateRangeStr.match(/(\d{4}[\/\-]\d{2}[\/\-]\d{2})/);
+      if (dateMatch) {
+        fileDate = dateMatch[1].replace(/-/g, '/');
+        console.log('Parsed date from range:', fileDate);
       }
     }
     
     if (!fileDate) {
-      throw new Error(`无法识别日期，原始值: "${rawDate}" (类型: ${typeof rawDate})`);
+      throw new Error('无法识别日期。表头无"日期"列，且无法从标题行解析日期');
     }
+    console.log('Final fileDate:', fileDate);
     
     // 字段映射
     const chMap = {
