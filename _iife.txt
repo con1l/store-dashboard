@@ -1,0 +1,28 @@
+(function init() {
+  const seen = {};
+  for (const dt of dates) {
+    for (const name in DATA[dt]) {
+      if (!seen[name]) {
+        seen[name] = true;
+        const totals = {};
+        for (const ch of channels) {
+          let s = 0;
+          for (const d of dates) { s += (DATA[d][name]||{})[ch]||0; }
+          totals[ch] = Math.round(s*100)/100;
+        }
+        allStores.push({name, totals});
+      }
+    }
+  }
+  allStores.sort((a,b)=>b.totals['总支付']-a.totals['总支付']);
+  
+  document.getElementById('sStores').textContent = allStores.length;
+  document.getElementById('sDates').textContent = dates.length;
+  const grand = allStores.reduce((a,b)=>a+b.totals['总支付'],0);
+  document.getElementById('sTotal').textContent = '¥'+(grand/10000).toFixed(1)+'万';
+  
+  renderTopCards();
+  renderOverviewCharts();
+  renderDailyTable();
+  renderStoreList();
+})()

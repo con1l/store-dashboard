@@ -1,0 +1,28 @@
+function initApp() {
+  if (window.__appInited) return;
+  window.__appInited = true;
+  init();
+}
+
+// ──────────────────────────────────────────────
+// 文件上传
+// ──────────────────────────────────────────────
+async function handleUpload(file) {
+  if (!file) return;
+  const status = document.getElementById('uploadStatus');
+  status.style.display = 'block';
+  status.innerHTML = '⏳ 正在解析文件...';
+
+  try {
+    // 前端用SheetJS解析Excel
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    // 提取日期
+    let dateStr = '';
+    if (rows[1] && rows[1][0]) {
+      const rawDate = String(rows[1][0]);
+      dat
