@@ -331,18 +331,32 @@ async function handleUpload(file) {
     const storeData = {};
     let fileDate = '';
     
-    // 提取日期
+    // 提取日期（支持Excel日期序列号、字符串、Date对象）
     const dateIdx = headers.findIndex(h => h.includes('日期'));
     if (dateIdx !== -1) {
-      const rawDate = rows[2][dateIdx];
+      let rawDate = rows[2][dateIdx];
+      console.log('Raw date value:', rawDate, 'type:', typeof rawDate);
+      
       if (rawDate) {
-        const d = new Date(rawDate);
-        if (!isNaN(d)) {
+        let d = null;
+        // 如果是数字（Excel日期序列号）
+        if (typeof rawDate === 'number') {
+          // Excel日期序列号转换：1900-01-01基准，但有1900闰年bug
+          d = new Date((rawDate - 25569) * 86400 * 1000);
+        } else if (rawDate instanceof Date) {
+          d = rawDate;
+        } else {
+          // 字符串或其他格式
+          d = new Date(rawDate);
+        }
+        
+        if (d && !isNaN(d)) {
           fileDate = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+          console.log('Parsed date:', fileDate);
         }
       }
     }
-    if (!fileDate) throw new Error('无法识别日期');
+    if (!fileDate) throw new Error('无法识别日期，请检查Excel中日期列格式');
     
     // 字段映射
     const chMap = {
