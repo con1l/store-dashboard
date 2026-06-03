@@ -337,16 +337,30 @@ async function handleUpload(file) {
       console.log(`Row ${i}:`, rows[i]);
     }
     
+    // 跳过空行和默认列名，收集所有非垃圾行
+    const candidateRows = [];
     for (let i = 0; i < Math.min(rows.length, 20); i++) {
       const row = rows[i];
-      if (!row || !row.length || row.every(c => c === '' || c == null)) continue; // 跳过空行
+      if (!row || !row.length || row.every(c => c === '' || c == null)) continue;
       const strRow = row.map(h => String(h).trim());
-      // 跳过 "列1, 列2..." 这种 SheetJS 默认列名
-      if (strRow.every(h => /^\d+$/.test(h) || /^列\d+$/.test(h))) continue;
-      // 找到第一个有实际内容的行作为表头
-      headerRowIdx = i;
-      headers = strRow;
-      break;
+      if (strRow.every(h => /^\d+$/.test(h) || /^列\d+$/.test(h) || h === '')) continue;
+      candidateRows.push({ idx: i, row: strRow });
+    }
+    
+    if (candidateRows.length === 0) {
+      throw new Error('无法识别表头，Excel可能为空或格式异常');
+    }
+    
+    // 如果第一行看起来像日期范围（含 / 或 - 或年月日），取第二行作为表头
+    const firstRowStr = candidateRows[0].row.join(' ');
+    const looksLikeDateRange = /[\/\-年月日]/.test(firstRowStr);
+    
+    if (looksLikeDateRange && candidateRows.length >= 2) {
+      headerRowIdx = candidateRows[1].idx;
+      headers = candidateRows[1].row;
+    } else {
+      headerRowIdx = candidateRows[0].idx;
+      headers = candidateRows[0].row;
     }
     
     if (headers.length === 0 || headerRowIdx === -1) {
