@@ -1,40 +1,22 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
-import { mkdir } from 'fs/promises';
+import { kv } from '@vercel/kv';
 
-const DATA_DIR = join(process.cwd(), 'data');
-
-// 确保 data 目录存在
-async function ensureDataDir() {
-  try {
-    await mkdir(DATA_DIR, { recursive: true });
-  } catch (e) {}
-}
+const DATA_KEY = 'store:all_data';
+const FILES_KEY = 'store:file_list';
 
 export async function getAllData() {
-  await ensureDataDir();
-  const file = join(DATA_DIR, 'stores.json');
-  if (!existsSync(file)) return {};
-  try {
-    return JSON.parse(readFileSync(file, 'utf-8'));
-  } catch { return {}; }
+  const data = await kv.get(DATA_KEY);
+  return data || {};
 }
 
 export async function saveAllData(data) {
-  await ensureDataDir();
-  const file = join(DATA_DIR, 'stores.json');
-  writeFileSync(file, JSON.stringify(data, null, 2), 'utf-8');
+  await kv.set(DATA_KEY, data);
 }
 
 export async function getFileList() {
-  await ensureDataDir();
-  const file = join(DATA_DIR, 'files.json');
-  if (!existsSync(file)) return [];
-  try { return JSON.parse(readFileSync(file, 'utf-8')); } catch { return []; }
+  const list = await kv.get(FILES_KEY);
+  return list || [];
 }
 
 export async function saveFileList(list) {
-  await ensureDataDir();
-  const file = join(DATA_DIR, 'files.json');
-  writeFileSync(file, JSON.stringify(list, null, 2), 'utf-8');
+  await kv.set(FILES_KEY, list);
 }
