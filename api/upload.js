@@ -1,5 +1,11 @@
 import { getAllData, saveAllData, getFileList, saveFileList } from '../server/store.js';
-import * as XLSX from 'xlsx';
+
+let XLSX;
+try {
+  XLSX = await import('xlsx');
+} catch (e) {
+  console.error('XLSX import failed:', e.message);
+}
 
 export const config = { api: { bodyParser: false } };
 
@@ -18,6 +24,10 @@ export default async function handler(req, res) {
   const url = new URL(req.url, `https://${req.headers.host}`);
   if (url.searchParams.get('key') !== 'ft2024') {
     return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (!XLSX) {
+    return res.status(500).json({ error: 'XLSX library not loaded' });
   }
 
   try {
