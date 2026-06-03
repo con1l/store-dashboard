@@ -2,15 +2,10 @@
 <html lang="zh">
 <head>
 <meta charset="utf-8">
-<script type="importmap">
-{
-  "imports": {
-    "xlsx": "https://esm.sh/xlsx@0.18.5"
-  }
-}
-</script>
+
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>饭团姐姐门店数据看板</title>
+<script src="libs/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <style>
@@ -174,19 +169,18 @@ function initApp() {
 }
 
 // ──────────────────────────────────────────────
-// 用ESM动态导入SheetJS解析Excel（支持.xls和.xlsx）
+// 用本地SheetJS解析Excel（支持.xls和.xlsx）
 // ──────────────────────────────────────────────
 async function handleUpload(file) {
   if (!file) return;
   const status = document.getElementById('uploadStatus');
   status.style.display = 'block';
-  status.innerHTML = '⏳ 正在加载解析库...';
+  status.innerHTML = '⏳ 正在解析文件...';
 
   try {
-    // 动态导入SheetJS
-    const XLSX = await import('xlsx');
-
-    status.innerHTML = '⏳ 正在解析文件...';
+    if (typeof XLSX === 'undefined') {
+      throw new Error('SheetJS库未加载，请刷新页面重试');
+    }
 
     const data = await file.arrayBuffer();
     const workbook = XLSX.read(data, { type: 'array' });
