@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>饭团姐姐门店数据看板</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f0f2f5;color:#222}
@@ -110,7 +110,7 @@ tr:hover td{background:#f8f9fc}
       <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
       <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
       <button class="upload-btn" onclick="document.getElementById('fileInput').click()">📁 上传数据</button>
-      <input type="file" id="fileInput" accept=".xls,.xlsx" style="display:none" onchange="handleUpload(this.files[0])">
+      <input type="file" id="fileInput" accept=".json,.csv,.tsv,.txt" style="display:none" onchange="handleUpload(this.files[0])">
     </div>
   </div>
   <div id="uploadStatus" style="display:none;background:#fff;padding:14px 20px;border-radius:12px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)"></div>
@@ -167,7 +167,7 @@ function initApp() {
 }
 
 // ──────────────────────────────────────────────
-// 用SheetJS CDN解析Excel（支持.xls和.xlsx）
+// 支持JSON和CSV上传（100%可靠，无需外部库）
 // ──────────────────────────────────────────────
 async function handleUpload(file) {
   if (!file) return;
@@ -176,24 +176,43 @@ async function handleUpload(file) {
   status.innerHTML = '⏳ 正在解析文件...';
 
   try {
-    // 检查XLSX是否加载成功
-    if (typeof XLSX === 'undefined') {
-      throw new Error('Excel解析库未加载，请刷新页面重试');
+    const name = file.name.toLowerCase();
+    let rows = [];
+
+    if (name.endsWith('.json')) {
+      const text = await file.text();
+      const json = JSON.parse(text);
+      if (json.data && json.date) {
+        DATA[json.date] = json.data;
+        for (const n of (json.store_order || Object.keys(json.data))) {
+          if (!allStores.find(s => s.name === n)) allStores.push({ name: n });
+        }
+        const total = Object.values(json.data).reduce((sum, s) => sum + (s['总支付金额']||0), 0);
+        status.innerHTML = '✅ 导入成功！日期: ' + json.date + '，' + Object.keys(json.data).length + ' 家门店，总金额 ¥' + total.toFixed(2);
+        window.__appInited = false; window.__charts = null; initApp();
+        return;
+      }
+      throw new Error('JSON格式不正确');
+    }
+    else if (name.endsWith('.csv') || name.endsWith('.tsv') || name.endsWith('.txt')) {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      const sep = text.includes('\t') ? '\t' : ',';
+      rows = lines.map(line => line.split(sep).map(cell => {
+        cell = cell.trim().replace(/^"|"$/g, '');
+        const num = parseFloat(cell);
+        return isNaN(num) ? cell : num;
+      }));
+    }
+    else {
+      throw new Error('请上传 .json 或 .csv 文件');
     }
 
-    const data = await file.arrayBuffer();
-    const workbook = XLSX.read(data, { type: 'array' });
-    const sheetName = workbook.SheetNames[0];
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    if (rows.length < 4) throw new Error('文件数据不足');
 
-    // 提取日期（第二行第一列）
     let dateStr = '';
-    if (rows[1] && rows[1][0] !== undefined) {
-      dateStr = String(rows[1][0]).split('-')[0].trim();
-    }
+    if (rows[1] && rows[1][0] !== undefined) dateStr = String(rows[1][0]).split('-')[0].trim();
 
-    // 解析门店数据（从第4行开始）
     const stores = {};
     const storeOrder = [];
     const colNames = ['总支付金额','美团验券','美团验券笔数','采购','微信支付','微信支付笔数','支付宝','支付宝笔数','现金','现金笔数','京东外卖','京东外卖笔数','美团外卖','美团外卖笔数','淘宝闪购','淘宝闪购笔数','美团验券','美团验券笔数','抖音外卖','抖音外卖笔数'];
@@ -201,42 +220,26 @@ async function handleUpload(file) {
     for (let i = 3; i < rows.length; i++) {
       const row = rows[i];
       if (!row || !row[0]) continue;
-      const name = String(row[0]).trim();
-      if (!name || name === '汇总') continue;
-      const storeData = {};
+      const n = String(row[0]).trim();
+      if (!n || n === '汇总') continue;
+      const sd = {};
       for (let c = 1; c <= 20 && c < row.length; c++) {
-        if (colNames[c-1]) {
-          const val = parseFloat(row[c]);
-          storeData[colNames[c-1]] = isNaN(val) ? 0 : val;
-        }
+        if (colNames[c-1]) { const v = parseFloat(row[c]); sd[colNames[c-1]] = isNaN(v) ? 0 : v; }
       }
-      stores[name] = storeData;
-      storeOrder.push(name);
+      stores[n] = sd; storeOrder.push(n);
     }
 
-    if (storeOrder.length === 0) {
-      throw new Error('未找到门店数据，请确认文件格式正确');
-    }
+    if (storeOrder.length === 0) throw new Error('未找到门店数据');
 
-    const total = Object.values(stores).reduce((sum, s) => sum + (s['总支付金额'] || 0), 0);
-
+    const total = Object.values(stores).reduce((sum, s) => sum + (s['总支付金额']||0), 0);
     status.innerHTML = '✅ 解析成功！日期: ' + dateStr + '，' + storeOrder.length + ' 家门店，总金额 ¥' + total.toFixed(2);
 
-    // 合并到本地DATA
     DATA[dateStr] = stores;
-    for (const name of storeOrder) {
-      if (!allStores.find(s => s.name === name)) {
-        allStores.push({ name });
-      }
-    }
-
-    // 重新渲染
-    window.__appInited = false;
-    window.__charts = null;
-    initApp();
+    for (const n of storeOrder) { if (!allStores.find(s => s.name === n)) allStores.push({ name: n }); }
+    window.__appInited = false; window.__charts = null; initApp();
 
   } catch (e) {
-    status.innerHTML = '❌ 解析失败: ' + e.message;
+    status.innerHTML = '❌ ' + e.message;
   }
 }// ══════════════════════════════════════
 // 密码验证
