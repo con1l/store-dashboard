@@ -248,7 +248,7 @@ function storeFileData(name, dateStr, storesObj) {
   renderFileList();
 }
 
-const channels = ['总支付','抖音验券','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
+const channels = ['总支付','抖音验券','微信支付','支付宝','现金','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
 const chShort = ['抖音验券','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
 
 // 所有门店
@@ -423,11 +423,19 @@ async function handleUpload(file) {
     }
     console.log('Final fileDate:', fileDate);
     
-    // 字段映射
+    // 字段映射：Excel列名 → 内部key
     const chMap = {
-      '总支付金额': '总支付', '总支付': '总支付',
-      '美团外卖': '美团外卖', '抖音验券': '抖音验券',
-      '微信支付': '微信支付', '支付宝': '支付宝', '采购': '采购'
+      '总支付金额': '总支付',
+      '抖音验券金额': '抖音验券',
+      '微信支付金额': '微信支付',
+      '支付宝金额': '支付宝',
+      '美团外卖金额': '美团外卖',
+      '京东外卖金额': '京东外卖',
+      '淘宝闪购金额': '淘宝闪购',
+      '美团验券金额': '美团验券',
+      '抖音外卖金额': '抖音外卖',
+      '现金金额': '现金',
+      '采购': '采购'
     };
     
     // 解析门店数据（从表头下一行开始）
@@ -444,7 +452,7 @@ async function handleUpload(file) {
       }
       if (!storeData[rowDate]) storeData[rowDate] = {};
       if (!storeData[rowDate][name]) {
-        storeData[rowDate][name] = { 总支付: 0, 美团外卖: 0, 抖音验券: 0, 微信支付: 0, 支付宝: 0, 采购: 0 };
+        storeData[rowDate][name] = { 总支付:0, 抖音验券:0, 微信支付:0, 支付宝:0, 现金:0, 京东外卖:0, 美团外卖:0, 淘宝闪购:0, 美团验券:0, 抖音外卖:0, 采购:0 };
       }
       for (const [src, tgt] of Object.entries(chMap)) {
         const idx = headers.indexOf(src);
