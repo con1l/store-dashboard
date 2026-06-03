@@ -20,6 +20,44 @@ function initApp() {
 // ──────────────────────────────────────────────
 // 文件上传
 // ──────────────────────────────────────────────
+// Field name normalization - supports aliases from different Excel formats
+const FIELD_MAP = {
+  '总支付': ['总支付', '总支付金额', '支付总额', '总收款', '支付金额'],
+  '美团验券': ['美团验券', '美团验券金额'],
+  '美团验券笔数': ['美团验券笔数'],
+  '采购': ['采购', '采购金额'],
+  '微信支付': ['微信支付', '微信支付金额'],
+  '微信支付笔数': ['微信支付笔数'],
+  '支付宝': ['支付宝', '支付宝金额'],
+  '支付宝笔号': ['支付宝笔号', '支付宝笔数'],
+  '现金': ['现金', '现金金额'],
+  '现金笔数': ['现金笔数'],
+  '京东外卖': ['京东外卖', '京东外卖金额'],
+  '京东外卖笔数': ['京东外卖笔数'],
+  '美团外卖': ['美团外卖', '美团外卖金额'],
+  '美团外卖笔数': ['美团外卖笔数'],
+  '淘宝闪购': ['淘宝闪购', '淘宝闪购金额'],
+  '淘宝闪购笔数': ['淘宝闪购笔数'],
+  '抖音外卖': ['抖音外卖', '抖音外卖金额'],
+  '抖音外卖笔数': ['抖音外卖笔数']
+};
+
+function normalizeStoreKeys(storeData) {
+  const normalized = {};
+  for (const [standardKey, aliases] of Object.entries(FIELD_MAP)) {
+    for (const alias of aliases) {
+      if (storeData[alias] !== undefined) {
+        normalized[standardKey] = storeData[alias];
+        break;
+      }
+    }
+    if (normalized[standardKey] === undefined) {
+      normalized[standardKey] = 0;
+    }
+  }
+  return normalized;
+}
+
 async function handleUpload(file) {
   if (!file) return;
   const st = document.getElementById("uploadStatus");
@@ -32,7 +70,7 @@ async function handleUpload(file) {
     const rows = XLSX.utils.sheet_to_json(ws, {header:1});
     let ds = ""; if (rows[1]&&rows[1][0]!==undefined) ds=String(rows[1][0]).split("-")[0].trim();
     const stores={}; const so=[];
-    const cn=["总支付金额","美团验券","美团验券笔数","采购","微信支付","微信支付笔数","支付宝","支付宝笔号","现金","现金笔数","京东外卖","京东外卖笔数","美团外卖","美团外卖笔数","淘宝闪购","淘宝闪购笔数","美团验券","美团验券笔数","抖音外卖","抖音外卖笔数"];
+    const cn=["总支付","美团验券","美团验券笔数","采购","微信支付","微信支付笔数","支付宝","支付宝笔号","现金","现金笔数","京东外卖","京东外卖笔数","美团外卖","美团外卖笔数","淘宝闪购","淘宝闪购笔数","美团验券","美团验券笔数","抖音外卖","抖音外卖笔数"];
     for(let i=3;i<rows.length;i++){const r=rows[i];if(!r||!r[0])continue;const n=String(r[0]).trim();if(!n||n==="汇总")continue;const sd={};for(let c=1;c<=20&&c<r.length;c++){if(cn[c-1]){const v=parseFloat(r[c]);sd[cn[c-1]]=isNaN(v)?0:v;}}stores[n]=sd;so.push(n);}
     if(so.length===0) throw new Error("No data");
     const tot=Object.values(stores).reduce((s,x)=>s+(x["总支付金额"]||0),0);
@@ -43,10 +81,202 @@ async function handleUpload(file) {
   } catch(e) { st.innerHTML="ERR: "+e.message; }
   }
 
-!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>饭团姐姐门店数据看板</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+function init() {
+  const seen = {};
+  for (const dt of dates) {
+    for (const name in DATA[dt]) {
+      if (!seen[name]) {
+        seen[name] = true;
+        const raw = DATA[dt][name];
+        const totals = {};
+        for (const ch of channels) {
+          let s = 0;
+          for (const d of dates) { s += (DATA[d][name]||{})[ch]||0; }
+          totals[ch] = Math.round(s*100)/100;
+        }
+        allStores.push({name, totals});
+      }
+    }
+  }
+  allStores.sort((a,b)=>b.totals['总支付']-a.totals['总支付']);
+  
+  document.getElementById('sStores').textContent = allStores.length;
+  document.getElementById('sDates').textContent = dates.length;
+  const grand = allStores.reduce((a,b)=>a+b.totals['总支付'],0);
+  document.getElementById('sTotal').textContent = '¥'+(grand/10000).toFixed(1)+'万';
+  
+  renderTopCards();
+  renderOverviewCharts();
+  renderDailyTable();
+  renderStoreList();
+}
+init();
+
+
+// ── Top卡片 ──
+function renderTopCards() {
+  const g = document.getElementById('topGrid');
+  g.innerHTML = allStores.slice(0,10).map(s=>`
+    <div class="card" onclick="showDetail('${esc(s.name)}')">
+      <h4>🏪 ${esc(s.name)}</h4>
+      <div class="card-num">¥${s.totals['总支付'].toLocaleString()}</div>
+      <div class="card-sub">${dates.length}日总支付金额 · 点击查看详情 →</div>
+    </div>`).join('');
+}
+
+// ── 总览图 ──
+function renderOverviewCharts() {
+  if (dates.length < 2) return;
+  const c = document.getElementById('overviewCharts');
+  c.innerHTML = `
+    <div class="chart-card"><h3>每日总支付金额趋势</h3><canvas id="ocLine" height="120"></canvas></div>
+    <div class="chart-card"><h3>渠道金额对比（所有日期合计）</h3><canvas id="ocBar" height="120"></canvas></div>`;
+  
+  // 每日总支付趋势
+  const dailyTotals = dates.map(d=>{
+    let s=0;for(const n in DATA[d])s+=DATA[d][n]['总支付']||0;return Math.round(s);
+  });
+  new Chart(document.getElementById('ocLine'),{
+    type:'line',data:{labels:dates,datasets:[{label:'总支付',data:dailyTotals,borderColor:'#4472C4',backgroundColor:'rgba(68,114,196,0.1)',fill:true,tension:0.4,pointRadius:5}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+  });
+  
+  // 渠道柱状图
+  const chVals = chShort.map(ch=>{let s=0;for(const d of dates)for(const n in DATA[d])s+=(DATA[d][n]||{})[ch]||0;return Math.round(s)});
+  new Chart(document.getElementById('ocBar'),{
+    type:'bar',data:{labels:chShort,datasets:[{label:'金额',data:chVals,backgroundColor:'rgba(68,114,196,0.75)',borderRadius:6}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+  });
+}
+
+// ── 每日汇总表 ──
+function renderDailyTable() {
+  const wrap = document.getElementById('dailyTableWrap');
+  wrap.style.display='block';
+  document.getElementById('dailyHead').innerHTML='<th>日期</th><th>门店数</th>'+channels.map(ch=>`<th>${ch}</th>`).join('');
+  const rows = dates.map(dt => {
+    const d=DATA[dt];const names=Object.keys(d);
+    const cells=[`<td>${dt}</td>`,`<td>${names.length}</td>`];
+    for (const ch of channels) {
+      let s=0;for(const n in d)s+=d[n][ch]||0;
+      cells.push(`<td>${Math.round(s*100)/100}</td>`);
+    }
+    return '<tr>'+cells.join('')+'</tr>';
+  });
+  document.getElementById('dailyBody').innerHTML=rows.join('');
+}
+
+// ── 门店列表 ──
+function renderStoreList(list) {
+  list=list||allStores;
+  const el=document.getElementById('storeRows');
+  el.innerHTML=list.map(s=>`<div class="store-row" onclick="showDetail('${esc(s.name)}')"><div class="sn">🏪 ${esc(s.name)}</div><div class="sv">¥${s.totals['总支付'].toLocaleString()}</div></div>`).join('');
+  document.getElementById('storeListWrap').style.display='block';
+}
+function filterS(){
+  const q=document.getElementById('searchInput').value.trim().toLowerCase();
+  renderStoreList(q?allStores.filter(s=>s.name.toLowerCase().includes(q)):allStores);
+}
+
+// ── 详情页 ──
+function showDetail(name) {
+  document.getElementById('mainView').style.display='none';
+  document.getElementById('detailView').classList.add('active');
+  document.getElementById('dTitle').textContent='🏪 '+name;
+  document.getElementById('dSub').textContent='数据日期：'+dates.join(' / ');
+  
+  // 汇总卡片
+  const keyCh=['总支付','抖音验券','微信支付','支付宝','美团外卖','采购'];
+  const changes={};
+  if(dates.length>=2){
+    const d1=dates[dates.length-2],d2=dates[dates.length-1];
+    for(const ch of keyCh){
+      const v1=(DATA[d1][name]||{})[ch]||0,v2=(DATA[d2][name]||{})[ch]||0;
+      changes[ch]=v1>0?Math.round((v2-v1)/v1*1000)/10:null;
+    }
+  }
+  document.getElementById('dStats').innerHTML=keyCh.map(ch=>{
+    const latest=(DATA[dates[dates.length-1]][name]||{})[ch]||0;
+    const c=changes[ch];
+    const cs=c===null?'仅一期':((c>=0?'+':'')+c+'%');
+    const cl=c===null?'neu':(c>=0?'up':'down');
+    return `<div class="stat-c"><div class="sl">${ch}</div><div class="sv">¥${latest.toLocaleString()}</div><div class="sc ${cl}">${dates.length>1?'较上期 '+cs:''}</div></div>`;
+  }).join('');
+  
+  // 明细表
+  const dtCh=['总支付','抖音验券','采购','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
+  document.getElementById('dtHead').innerHTML='<th>日期</th>'+dtCh.map(c=>`<th>${c}</th>`).join('');
+  document.getElementById('dtBody').innerHTML=dates.map(dt=>{
+    const r=(DATA[dt][name]||{});
+    return '<tr><td>'+dt+'</td>'+dtCh.map(c=>'<td>¥'+((r[c]||0).toLocaleString())+'</td>').join('')+'</tr>';
+  }).join('');
+  
+  // 图表
+  setTimeout(()=>renderDetailCharts(name),100);
+}
+function closeDetail(){document.getElementById('detailView').classList.remove('active');document.getElementById('mainView').style.display=''}
+
+function renderDetailCharts(name){
+  Chart.defaults.font.family="'Microsoft YaHei',sans-serif";
+  const COLORS=['#4472C4','#ED7D31','#A5A5A5','#70AD47','#FFC000','#5B9BD5','#D97D7A','#B5855A','#636382','#92CD50'];
+  const latestDt=dates[dates.length-1];
+  const lr=(DATA[latestDt][name]||{});
+  
+  // 渠道柱状
+  const barCh=['总支付','抖音验券','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
+  new Chart(document.getElementById('dcBar'),{
+    type:'bar',data:{labels:barCh,datasets:[{label:'金额',data:barCh.map(ch=>lr[ch]||0),backgroundColor:COLORS.slice(0,barCh.length),borderRadius:6}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+  });
+  
+  // 饼图
+  const pieCh=['抖音验券','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
+  new Chart(document.getElementById('dcPie'),{
+    type:'pie',data:{labels:pieCh,datasets:[{data:pieCh.map(ch=>lr[ch]||0),backgroundColor:COLORS.slice(0,pieCh.length)}]},
+    options:{responsive:true,plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}}}}
+  });
+  
+  // 趋势折线
+  new Chart(document.getElementById('dcTrend'),{
+    type:'line',data:{labels:dates,datasets:[{label:'总支付',data:dates.map(d=>(DATA[d][name]||{})['总支付']||0),borderColor:'#4472C4',backgroundColor:'rgba(68,114,196,0.1)',fill:true,tension:0.4,pointRadius:5}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+  });
+  
+  // 外卖趋势
+  const delCh=['抖音验券','美团验券','抖音外卖','美团外卖','京东外卖','淘宝闪购'];
+  new Chart(document.getElementById('dcDeliv'),{
+    type:'line',data:{labels:dates,datasets:delCh.map((ch,i)=>({label:ch,data:dates.map(d=>(DATA[d][name]||{})[ch]||0),borderColor:COLORS[i%COLORS.length],backgroundColor:'transparent',tension:0.4,pointRadius:4}))},
+    options:{responsive:true,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},scales:{y:{beginAtZero:true}}}
+  });
+}
+
+function esc(s){return s.replace(/'/g,"&#39;").replace(/"/g,'&quot;')}
+
+// ══════════════════════════════════════
+// 密码验证
+// ══════════════════════════════════════
+const AUTH_KEY='ftdashboard_auth';
+const AUTH_PWD='ft2024'; // 密码：ft2024
+
+function checkAuth(){
+  const input=document.getElementById('authInput').value.trim();
+  if(input===AUTH_PWD){
+    localStorage.setItem(AUTH_KEY,'1');
+    document.getElementById('authLayer').style.display='none';
+    document.getElementById('appContent').style.display='block';
+    initApp();
+  }else{
+    document.getElementById('authErr').style.display='block';
+    document.getElementById('authInput').value='';
+    document.getElementById('authInput').focus();
+  }
+}
+
+// 检查是否已登录
+if(localStorage.getItem(AUTH_KEY)==='1'){
+  document.getElementById('authLayer').style.display='none';
+  document.getElementById('appContent').style.display='block';
+  initApp();
+}else{
+  document.getElementById('authInput').focus();
+}

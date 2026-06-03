@@ -170,6 +170,44 @@ function initApp() {
 // ──────────────────────────────────────────────
 // 文件上传
 // ──────────────────────────────────────────────
+// Field name normalization - supports aliases from different Excel formats
+const FIELD_MAP = {
+  '总支付': ['总支付', '总支付金额', '支付总额', '总收款', '支付金额'],
+  '美团验券': ['美团验券', '美团验券金额'],
+  '美团验券笔数': ['美团验券笔数'],
+  '采购': ['采购', '采购金额'],
+  '微信支付': ['微信支付', '微信支付金额'],
+  '微信支付笔数': ['微信支付笔数'],
+  '支付宝': ['支付宝', '支付宝金额'],
+  '支付宝笔号': ['支付宝笔号', '支付宝笔数'],
+  '现金': ['现金', '现金金额'],
+  '现金笔数': ['现金笔数'],
+  '京东外卖': ['京东外卖', '京东外卖金额'],
+  '京东外卖笔数': ['京东外卖笔数'],
+  '美团外卖': ['美团外卖', '美团外卖金额'],
+  '美团外卖笔数': ['美团外卖笔数'],
+  '淘宝闪购': ['淘宝闪购', '淘宝闪购金额'],
+  '淘宝闪购笔数': ['淘宝闪购笔数'],
+  '抖音外卖': ['抖音外卖', '抖音外卖金额'],
+  '抖音外卖笔数': ['抖音外卖笔数']
+};
+
+function normalizeStoreKeys(storeData) {
+  const normalized = {};
+  for (const [standardKey, aliases] of Object.entries(FIELD_MAP)) {
+    for (const alias of aliases) {
+      if (storeData[alias] !== undefined) {
+        normalized[standardKey] = storeData[alias];
+        break;
+      }
+    }
+    if (normalized[standardKey] === undefined) {
+      normalized[standardKey] = 0;
+    }
+  }
+  return normalized;
+}
+
 async function handleUpload(file) {
   if (!file) return;
   const st = document.getElementById("uploadStatus");
@@ -200,16 +238,10 @@ function init() {
       if (!seen[name]) {
         seen[name] = true;
         const raw = DATA[dt][name];
-        // Normalize keys: map '总支付金额' -> '总支付' to match channels array
-        const rec = {};
-        for (const k in raw) {
-          const nk = (k === '总支付金额') ? '总支付' : k;
-          rec[nk] = raw[k];
-        }
         const totals = {};
         for (const ch of channels) {
           let s = 0;
-          for (const d of dates) { s += (DATA[d][name]&&DATA[d][name][ch]) ? DATA[d][name][ch] : ((DATA[d][name]&&DATA[d][name]['总支付金额'])&&ch==='总支付'?DATA[d][name]['总支付金额']:0); }
+          for (const d of dates) { s += (DATA[d][name]||{})[ch]||0; }
           totals[ch] = Math.round(s*100)/100;
         }
         allStores.push({name, totals});
