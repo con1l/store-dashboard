@@ -1,0 +1,25 @@
+86:   }
+87:   allStores.sort((a,b)=>b.totals['总支付']-a.totals['总支付']);
+88:   
+89:   document.getElementById('sStores').textContent = allStores.length;
+90:   document.getElementById('sDates').textContent = dates.length;
+91:   const grand = allStores.reduce((a,b)=>a+b.totals['总支付'],0);
+92:   document.getElementById('sTotal').textContent = '¥'+(grand/10000).toFixed(1)+'万';
+93:   
+94:   renderTopCards();
+95:   renderOverviewCharts();
+96:   renderDailyTable();
+97:   renderStoreList();
+98: })();
+99: 
+100: // ── Top卡片 ──
+101: function renderTopCards() {
+102:   const g = document.getElementById('topGrid');
+103:   g.innerHTML = allStores.slice(0,10).map(s=>`
+104:     <div class="card" onclick="showDetail('${esc(s.name)}')">
+105:       <h4>🏪 ${esc(s.name)}</h4>
+106:       <div class="card-num">¥${s.totals['总支付'].toLocaleString()}</div>
+107:       <div class="card-sub">${dates.length}日总支付金额 · 点击查看详情 →</div>
+108:     </div>`).join('');
+109: }
+110: 

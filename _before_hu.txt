@@ -1,0 +1,11 @@
+ion initApp() {
+  if (window.__appInited) return;
+  window.__appInited = true;
+  init();
+}
+
+// ──────────────────────────────────────────────
+// 文件上传
+// ──────────────────────────────────────────────
+async function handleUpload(file) {
+  if (!file) r
