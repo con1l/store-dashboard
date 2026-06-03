@@ -52,8 +52,10 @@ module.exports = async (req, res) => {
       }
     }
 
+    // 临时调试：打印收到的auth值
+    console.log('DEBUG auth token:', JSON.stringify(authToken));
     if (authToken !== 'ft2024') {
-      return res.status(403).json({ error: '密码错误' });
+      return res.status(403).json({ error: '密码错误 [debug:' + authToken + ']' });
     }
     if (!fileBuffer) {
       return res.status(400).json({ error: '没有文件' });
