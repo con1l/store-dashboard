@@ -316,13 +316,74 @@ function normalizeStoreKeys(storeData) {
 async function handleUpload(file) {
   if (!file) return;
   const st = document.getElementById("uploadStatus");
-  st.style.display = "block"; st.innerHTML = "Uploading...";
+  st.style.display = "block"; st.innerHTML = "解析中...";
+  
   try {
-    const fd = new FormData();
-    fd.append('file', file);
-    const r = await fetch('/api/upload?key=ft2024', {method:'POST', body:fd, headers:{'x-filename':file.name}});
+    // 前端解析 Excel
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    
+    if (rows.length < 3) throw new Error('文件格式错误，数据行不足');
+    
+    const headers = rows[0].map(h => String(h).trim());
+    const storeData = {};
+    let fileDate = '';
+    
+    // 提取日期
+    const dateIdx = headers.findIndex(h => h.includes('日期'));
+    if (dateIdx !== -1) {
+      const rawDate = rows[2][dateIdx];
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!isNaN(d)) {
+          fileDate = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+        }
+      }
+    }
+    if (!fileDate) throw new Error('无法识别日期');
+    
+    // 字段映射
+    const chMap = {
+      '总支付金额': '总支付', '总支付': '总支付',
+      '美团外卖': '美团外卖', '抖音验券': '抖音验券',
+      '微信支付': '微信支付', '支付宝': '支付宝', '采购': '采购'
+    };
+    
+    // 解析门店数据
+    for (let i = 2; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.length) continue;
+      const name = String(row[headers.findIndex(h => h.includes('门店'))] || '').trim();
+      if (!name || name === 'undefined' || name === 'NaN') continue;
+      if (!storeData[fileDate]) storeData[fileDate] = {};
+      if (!storeData[fileDate][name]) {
+        storeData[fileDate][name] = { 总支付: 0, 美团外卖: 0, 抖音验券: 0, 微信支付: 0, 支付宝: 0, 采购: 0 };
+      }
+      for (const [src, tgt] of Object.entries(chMap)) {
+        const idx = headers.indexOf(src);
+        if (idx !== -1) {
+          const v = parseFloat(row[idx]);
+          if (!isNaN(v)) storeData[fileDate][name][tgt] += v;
+        }
+      }
+    }
+    
+    const storeCount = Object.keys(storeData[fileDate] || {}).length;
+    if (storeCount === 0) throw new Error('未解析到门店数据');
+    
+    st.innerHTML = "上传中...";
+    
+    // 上传解析后的 JSON 数据
+    const r = await fetch('/api/upload?key=ft2024', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storeData, fileDate, fileName: file.name })
+    });
     const j = await r.json();
     if (j.error) throw new Error(j.error);
+    
     // 重新拉取最新数据
     const r2 = await fetch('/api/data?key=ft2024');
     const j2 = await r2.json();
@@ -333,8 +394,11 @@ async function handleUpload(file) {
     allStores = [];
     window.__appInited = false;
     initApp();
-    st.innerHTML = "OK! " + j.date + " " + j.stores + "门店";
-  } catch(e) { st.innerHTML = "ERR: " + e.message; }
+    st.innerHTML = "✓ 上传成功! " + fileDate + " " + storeCount + "门店";
+  } catch(e) { 
+    console.error(e);
+    st.innerHTML = "ERR: " + e.message; 
+  }
 }
 
 function init() {
