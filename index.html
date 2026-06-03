@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>饭团姐姐门店数据看板</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f0f2f5;color:#222}
@@ -167,7 +167,7 @@ function initApp() {
 }
 
 // ──────────────────────────────────────────────
-// 用ExcelJS CDN解析Excel（浏览器端）
+// 用SheetJS CDN解析Excel（支持.xls和.xlsx）
 // ──────────────────────────────────────────────
 async function handleUpload(file) {
   if (!file) return;
@@ -176,20 +176,16 @@ async function handleUpload(file) {
   status.innerHTML = '⏳ 正在解析文件...';
 
   try {
-    const workbook = new ExcelJS.Workbook();
-    const arrayBuffer = await file.arrayBuffer();
-    await workbook.xlsx.load(arrayBuffer);
+    // 检查XLSX是否加载成功
+    if (typeof XLSX === 'undefined') {
+      throw new Error('Excel解析库未加载，请刷新页面重试');
+    }
 
-    const worksheet = workbook.worksheets[0];
-    if (!worksheet) throw new Error('没有找到工作表');
-
-    // 读取所有行
-    const rows = [];
-    worksheet.eachRow({ includeEmpty: true }, (row, rowNumber) => {
-      const values = row.values;
-      // row.values是1-indexed的数组，转成0-indexed
-      rows.push(Array.isArray(values) ? values.slice(1) : [values]);
-    });
+    const data = await file.arrayBuffer();
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
     // 提取日期（第二行第一列）
     let dateStr = '';
