@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh">
 <head>
 <meta charset="utf-8">
@@ -227,7 +227,7 @@ async function handleUpload(file) {
     st.innerHTML="OK! "+ds+" "+so.length+"st Y"+tot.toFixed(2);
     const _dbg = so[0] ? stores[so[0]] : null;
     if(_dbg) console.log("STORE_KEYS:", Object.keys(_dbg), "VAL_总支付:", _dbg["总支付"], "VAL_总金额:", _dbg["总支付金额"]);
-    DATA[ds]=stores;
+    DATA={}; allStores=[]; DATA[ds]=stores;
     for(const n of so){if(!allStores.find(s=>s.name===n)) allStores.push({name:n});}
     window.__appInited=false; window.__charts=null; initApp();
   } catch(e) { st.innerHTML="ERR: "+e.message; }
@@ -436,3 +436,7 @@ if(localStorage.getItem(AUTH_KEY)==='1'){
 </div><!-- /appContent -->
 </body>
 </html>
+
+
+
+
