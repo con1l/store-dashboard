@@ -3,6 +3,15 @@ import * as XLSX from 'xlsx';
 
 export const config = { api: { bodyParser: false } };
 
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', chunk => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).end();
 
@@ -12,10 +21,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const chunks = [];
-    for await (const chunk of req.body) chunks.push(chunk);
-    const buf = Buffer.concat(chunks);
-    const wb = XLSX.read(buf, { type: 'buffer', cellDates: true });
+    const buf = await readBody(req);
+    const wb = XLSX.read(buf, { type: 'buffer' });
 
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
@@ -32,10 +39,7 @@ export default async function handler(req, res) {
       if (rawDate) {
         const d = new Date(rawDate);
         if (!isNaN(d)) {
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          fileDate = `${y}/${m}/${day}`;
+          fileDate = `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
         }
       }
     }
@@ -55,7 +59,7 @@ export default async function handler(req, res) {
       if (!row.length) continue;
       const name = String(row[headers.findIndex(h => h.includes('门店'))] || '').trim();
       if (!name || name === 'undefined' || name === 'NaN') continue;
-      if (fileDate && !storeData[fileDate]) storeData[fileDate] = {};
+      if (!storeData[fileDate]) storeData[fileDate] = {};
       if (!storeData[fileDate][name]) storeData[fileDate][name] = { 总支付: 0, 美团外卖: 0, 抖音验券: 0, 微信支付: 0, 支付宝: 0, 采购: 0 };
       for (const [src, tgt] of Object.entries(chMap)) {
         const idx = headers.indexOf(src);
