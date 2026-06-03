@@ -557,7 +557,7 @@ function init() {
   document.getElementById('sStores').textContent = allStores.length;
   document.getElementById('sDates').textContent = dates.length;
   const grand = allStores.reduce((a,b)=>a+(b.totals['总支付']||0),0);
-  document.getElementById('sTotal').textContent = '¥'+(grand/10000).toFixed(1)+'万';
+  document.getElementById('sTotal').textContent = '¥'+(grand/2/10000).toFixed(1)+'万';
   
   renderTopCards();
   renderOverviewCharts();
