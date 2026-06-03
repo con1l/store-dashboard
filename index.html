@@ -90,6 +90,8 @@ tr:hover td{background:#f8f9fc}
 .file-tag .del{color:#f5222d;cursor:pointer;font-weight:700;margin-left:4px;font-size:15px}
 .file-tag .del:hover{color:#c41d3c}
 .file-empty{color:#999;font-size:13px}
+
+.procurement-section{margin-bottom:20px}
 </style>
 </head>
 <body>
@@ -154,6 +156,13 @@ tr:hover td{background:#f8f9fc}
   <div class="detail-wrap">
     <button class="back-btn" onclick="closeDetail()">← 返回看板</button>
     <div class="title-box"><h1 id="dTitle">🏪 --</h1><div class="sub" id="dSub"></div></div>
+    
+    <div class="procurement-section" id="procurementSection" style="display:none">
+      <div class="chart-card" style="margin-bottom:20px">
+        <h3>📦 采购统计</h3>
+        <div id="procStats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:12px"></div>
+      </div>
+    </div>
     <div class="stats-grid" id="dStats"></div>
     <div class="charts"><div class="chart-card"><h3>各渠道金额对比</h3><canvas id="dcBar" height="140"></canvas></div><div class="chart-card"><h3>渠道占比</h3><canvas id="dcPie" height="140"></canvas></div></div>
     <div class="charts"><div class="chart-card"><h3>总支付金额趋势</h3><canvas id="dcTrend" height="100"></canvas></div><div class="chart-card"><h3>外卖渠道趋势</h3><canvas id="dcDeliv" height="100"></canvas></div></div>
@@ -240,7 +249,7 @@ function storeFileData(name, dateStr, storesObj) {
   renderFileList();
 }
 
-const channels = ['总支付','抖音验券','采购','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
+const channels = ['总支付','抖音验券','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
 const chShort = ['抖音验券','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
 
 // 所有门店
@@ -261,7 +270,7 @@ const FIELD_MAP = {
   '总支付': ['总支付', '总支付金额', '支付总额', '总收款', '支付金额'],
   '美团验券': ['美团验券', '美团验券金额'],
   '美团验券笔数': ['美团验券笔数'],
-  '采购': ['采购', '采购金额'],
+  '采购': [ '采购金额'],
   '微信支付': ['微信支付', '微信支付金额'],
   '微信支付笔数': ['微信支付笔数'],
   '支付宝': ['支付宝', '支付宝金额'],
@@ -421,6 +430,14 @@ function renderDailyTable() {
 }
 
 // ── 门店列表 ──
+  // 采购汇总行
+  let procTotal = 0;
+  for (const d of dates) { for (const n in DATA[d]) procTotal += (DATA[d][n]['采购']||0); }
+  if (procTotal > 0) {
+    document.getElementById('dailyBody').innerHTML += '<tr class="sum-row" style="background:#fff8e1"><td>📦 采购合计</td><td>-</td>'+channels.map(ch=>'<td style="color:#e65100;font-weight:600">-</td>').join('')+'<td style="color:#e65100;font-weight:700">¥'+Math.round(procTotal*100)/100+'</td></tr>';
+  }
+
+
 function renderStoreList(list) {
   list=list||allStores;
   const el=document.getElementById('storeRows');
@@ -440,7 +457,7 @@ function showDetail(name) {
   document.getElementById('dSub').textContent='数据日期：'+dates.join(' / ');
   
   // 汇总卡片
-  const keyCh=['总支付','抖音验券','微信支付','支付宝','美团外卖','采购'];
+  const keyCh=['总支付','抖音验券','微信支付','支付宝','美团外卖'];
   const changes={};
   if(dates.length>=2){
     const d1=dates[dates.length-2],d2=dates[dates.length-1];
@@ -456,9 +473,27 @@ function showDetail(name) {
     const cl=c===null?'neu':(c>=0?'up':'down');
     return `<div class="stat-c"><div class="sl">${ch}</div><div class="sv">¥${latest.toLocaleString()}</div><div class="sc ${cl}">${dates.length>1?'较上期 '+cs:''}</div></div>`;
   }).join('');
+  // 采购单独显示
+  const procVal = (DATA[dates[dates.length-1]][name]||{})['采购']||0;
+  const procSection = document.getElementById('procurementSection');
+  const procEl = document.getElementById('procStats');
+  if (procVal > 0 || dates.some(d=>(DATA[d][name]||{})['采购']>0)) {
+    procSection.style.display = 'block';
+    let procHtml = '<div style="padding:10px;background:#fff3e0;border-radius:10px"><div style="font-size:13px;color:#888">最新日期采购金额</div><div style="font-size:22px;font-weight:700;color:#e65100">¥'+procVal.toFixed(2)+'</div></div>';
+    // 各日期采购明细
+    const procDays = dates.map(d=>{
+      const pv=(DATA[d][name]||{})['采购']||0;
+      return pv>0 ? '<div style="padding:6px 10px;background:#fff8e1;border-radius:8px;font-size:13px">'+d+'：¥'+pv.toFixed(2)+'</div>' : '';
+    }).filter(Boolean).join('');
+    if (procDays) procHtml += '<div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">'+procDays+'</div>';
+    procEl.innerHTML = procHtml;
+  } else {
+    procSection.style.display = 'none';
+  }
+
   
   // 明细表
-  const dtCh=['总支付','抖音验券','采购','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
+  const dtCh=['总支付','抖音验券','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
   document.getElementById('dtHead').innerHTML='<th>日期</th>'+dtCh.map(c=>`<th>${c}</th>`).join('');
   document.getElementById('dtBody').innerHTML=dates.map(dt=>{
     const r=(DATA[dt][name]||{});
