@@ -1,6 +1,5 @@
 // api/upload.js - Vercel Serverless Function
 const XLSX = require('xlsx');
-const busboy = require('busboy');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -16,29 +15,33 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const bb = busboy({ headers: req.headers });
+    // 读取完整请求体
+    const chunks = [];
+    for await (const chunk of req) {
+      chunks.push(chunk);
+    }
+    const body = Buffer.concat(chunks);
+    
+    // 解析 multipart
+    const boundary = getBoundary(req.headers['content-type']);
+    if (!boundary) {
+      return res.status(400).json({ error: '无效的请求格式' });
+    }
+    
+    const parts = parseMultipart(body, boundary);
     
     let fileBuffer = null;
     let fileName = '';
     let authToken = '';
 
-    bb.on('file', (name, stream, info) => {
-      fileName = info.filename;
-      const chunks = [];
-      stream.on('data', d => chunks.push(d));
-      stream.on('end', () => { fileBuffer = Buffer.concat(chunks); });
-    });
-
-    bb.on('field', (name, val) => {
-      if (name === 'auth') authToken = val.trim();
-    });
-
-    await new Promise((resolve, reject) => {
-      bb.on('finish', resolve);
-      bb.on('error', reject);
-      // Vercel 的 req 是 IncomingMessage，可以直接 pipe
-      req.pipe(bb);
-    });
+    for (const part of parts) {
+      if (part.name === 'auth') {
+        authToken = part.data.toString().trim();
+      } else if (part.name === 'file' && part.filename) {
+        fileName = part.filename;
+        fileBuffer = part.data;
+      }
+    }
 
     console.log('DEBUG auth:', JSON.stringify(authToken), 'file:', fileName);
 
@@ -98,3 +101,90 @@ module.exports = async (req, res) => {
     return res.status(500).json({ error: '解析失败: ' + err.message });
   }
 };
+
+function getBoundary(ct) {
+  const match = ct && ct.match(/boundary=(?:"([^"]+)"|([^;\s]+))/i);
+  return match ? (match[1] || match[2]) : null;
+}
+
+function parseMultipart(body, boundary) {
+  const results = [];
+  const delim = Buffer.from('--' + boundary);
+  const endDelim = Buffer.from('--' + boundary + '--');
+  
+  let pos = 0;
+  while (pos < body.length) {
+    // 找下一个 delimiter
+    let nextIdx = indexOf(body, delim, pos);
+    if (nextIdx === -1) break;
+    
+    // 检查是否结束标记
+    const afterDelim = nextIdx + delim.length;
+    if (afterDelim + 2 <= body.length && 
+        body[afterDelim] === 0x2D && body[afterDelim + 1] === 0x2D) {
+      break;
+    }
+    
+    // 跳过 \r\n
+    let headerStart = afterDelim;
+    if (headerStart < body.length && body[headerStart] === 0x0D) headerStart += 2;
+    else if (headerStart < body.length && body[headerStart] === 0x0A) headerStart += 1;
+    
+    // 找到头部和数据的分隔 (\r\n\r\n)
+    const headerEnd = indexOfSeq(body, [0x0D, 0x0A, 0x0D, 0x0A], headerStart);
+    if (headerEnd === -1) break;
+    
+    const headerStr = body.slice(headerStart, headerEnd).toString('latin1');
+    const dataStart = headerEnd + 4;
+    
+    // 解析 Content-Disposition
+    const nameMatch = headerStr.match(/name="([^"]+)"/);
+    const filenameMatch = headerStr.match(/filename="([^"]+)"/);
+    
+    // 找到下一个 delimiter 的位置来确定数据长度
+    const nextDelim = indexOf(body, delim, dataStart);
+    if (nextDelim === -1) break;
+    
+    // 数据末尾去掉前面的 \r\n
+    let dataEnd = nextDelim;
+    if (dataEnd > dataStart + 2 && body[dataEnd - 2] === 0x0D && body[dataEnd - 1] === 0x0A) {
+      dataEnd -= 2;
+    } else if (dataEnd > dataStart && body[dataEnd - 1] === 0x0A) {
+      dataEnd -= 1;
+    }
+    
+    results.push({
+      name: nameMatch ? nameMatch[1] : null,
+      filename: filenameMatch ? filenameMatch[1] : null,
+      data: body.slice(dataStart, dataEnd)
+    });
+    
+    pos = nextDelim;
+  }
+  
+  return results;
+}
+
+function indexOf(buf, search, start) {
+  start = start || 0;
+  for (let i = start; i <= buf.length - search.length; i++) {
+    let found = true;
+    for (let j = 0; j < search.length; j++) {
+      if (buf[i + j] !== search[j]) { found = false; break; }
+    }
+    if (found) return i;
+  }
+  return -1;
+}
+
+function indexOfSeq(buf, seq, start) {
+  start = start || 0;
+  for (let i = start; i <= buf.length - seq.length; i++) {
+    let found = true;
+    for (let j = 0; j < seq.length; j++) {
+      if (buf[i + j] !== seq[j]) { found = false; break; }
+    }
+    if (found) return i;
+  }
+  return -1;
+}
