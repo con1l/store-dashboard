@@ -82,7 +82,7 @@ body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:var(--bg)
   <div class="cg">
     <div class="cd"><h3>各渠道销售额</h3><button class="eb" onclick="expC('cBar')">导出</button><div id="cBar" style="height:340px"></div></div>
     <div class="cd"><h3>渠道销售占比</h3><button class="eb" onclick="expC('cPie')">导出</button><div id="cPie" style="height:340px"></div></div>
-    <div class="cd cf"><h3>每日渠道销售趋势</h3><button class="eb" onclick="expC('cLine')">导出</button><div id="cLine" style="height:320px"></div></div>
+    <div class="cd cf"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><h3 style="margin:0">每日渠道销售趋势</h3><select id="lineCh" onchange="rCharts(getF())" style="padding:5px 10px;border:1px solid var(--bd);border-radius:6px;font-size:12px"><option value="">全部渠道</option></select></div><button class="eb" onclick="expC('cLine')">导出</button><div id="cLine" style="height:320px"></div></div>
   </div>
   <div class="st">⏱ 时段对比</div>
   <div class="cmp"><div class="fr">
@@ -255,23 +255,32 @@ function refresh(){var d=getF();rTable(d);rCharts(d)}
 
 function rowTotal(r){var s=0;for(var ch of CH)s+=r[ch.k]||0;return s}
 
-// ── 表格 ──
+var _tblExpanded=false,_tblData=[];
 function rTable(data){
-  var w=document.getElementById('tw');
+  _tblData=data;_tblExpanded=false;
+  _renderTable();
+}
+function _renderTable(){
+  var data=_tblData,w=document.getElementById('tw');
   if(!data.length){w.innerHTML='<div class="emp"><div class="ic">📊</div><p>选择门店和日期范围查看数据</p></div>';return}
+  var showAll=_tblExpanded,limit=30,show=showAll?data:data.slice(0,limit);
   var th='<th>日期</th><th>门店</th>';for(var ch of CH)th+='<th>'+ch.n+'</th>';th+='<th>总销售额</th>';
   var h='<table><thead><tr>'+th+'</tr></thead><tbody>';
   var totals={};for(var ch of CH)totals[ch.k]=0;tots=0;
-  for(var r of data){
+  // 先算全部合计
+  for(var r of data){for(var ch of CH)totals[ch.k]+=(r[ch.k]||0);tots+=rowTotal(r)}
+  for(var r of show){
     var t=rowTotal(r);
     h+='<tr><td>'+r.date+'</td><td>'+r.store+'</td>';
     for(var ch of CH)h+='<td>¥'+(r[ch.k]||0).toFixed(2)+'</td>';
     h+='<td><b>¥'+t.toFixed(2)+'</b></td></tr>';
-    for(var ch of CH)totals[ch.k]+=(r[ch.k]||0);tots+=t;
   }
   h+='<tr class="tr"><td colspan="2">合计</td>';
   for(var ch of CH)h+='<td>¥'+totals[ch.k].toFixed(2)+'</td>';
   h+='<td>¥'+tots.toFixed(2)+'</td></tr></tbody></table>';
+  if(data.length>limit){
+    h+='<div style="text-align:center;padding:10px"><button class="btn" style="background:#7c3aed;border-color:#7c3aed;color:#fff;font-size:13px" onclick="_tblExpanded=!_tblExpanded;_renderTable()">'+(showAll?'🔼 收起':'🔽 展开全部 ('+data.length+'行)')+'</button></div>';
+  }
   w.innerHTML=h;
 }
 
@@ -280,6 +289,11 @@ var EC={};
 function gc(id){if(!EC[id])EC[id]=echarts.init(document.getElementById(id));return EC[id]}
 
 function rCharts(data){
+  // 更新趋势图渠道下拉
+  var sel=document.getElementById('lineCh'),cv=sel.value;
+  var opts='<option value="">全部渠道</option>'+CH.map(function(ch){return'<option value="'+ch.k+'">'+ch.n+'</option>'}).join('');
+  sel.innerHTML=opts;if(cv)sel.value=cv;
+
   // 柱状图
   var bar=gc('cBar'),agg={};
   for(var ch of CH)agg[ch.k]=0;
@@ -294,7 +308,9 @@ function rCharts(data){
   var line=gc('cLine');
   var dMap={};for(var r of data){if(!dMap[r.date])dMap[r.date]={};for(var ch of CH){if(!dMap[r.date][ch.k])dMap[r.date][ch.k]=0;dMap[r.date][ch.k]+=(r[ch.k]||0)}}
   var xD=Object.keys(dMap).sort();
-  line.setOption({tooltip:{trigger:'axis'},legend:{data:CHN,bottom:0,textStyle:{fontSize:11},type:'scroll'},grid:{left:70,right:20,top:20,bottom:50},xAxis:{type:'category',data:xD},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:CH.map(function(ch,i){return{name:ch.n,type:'line',smooth:true,data:xD.map(function(d){return dMap[d][ch.k]||0}),lineStyle:{width:2},itemStyle:{color:CHC[i]}}})});
+  var picked=document.getElementById('lineCh').value;
+  var showCH=picked?CH.filter(function(ch){return ch.k===picked}):CH;
+  line.setOption({tooltip:{trigger:'axis'},legend:{data:showCH.map(function(ch){return ch.n}),bottom:0,textStyle:{fontSize:11},type:'scroll'},grid:{left:70,right:20,top:20,bottom:50},xAxis:{type:'category',data:xD},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:showCH.map(function(ch,i){return{name:ch.n,type:'line',smooth:true,data:xD.map(function(d){return dMap[d][ch.k]||0}),lineStyle:{width:2},itemStyle:{color:ch.c}}})});
 }
 
 // ── 导出图表 ─══
