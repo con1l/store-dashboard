@@ -97,7 +97,7 @@ body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:var(--bg)
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <h3 style="margin:0">时段对比 - 每日趋势</h3>
         <select id="cpP" onchange="updCmpL()" style="padding:5px 10px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
-          <option value="mt_wm">美团外卖</option><option value="mt_yq">美团验券</option><option value="dy_yq">抖音验券</option><option value="dy_wm">抖音外卖</option><option value="tb">淘宝闪购</option><option value="jd">京东外卖</option><option value="cash">现金</option>
+          <option value="mt_wm">美团外卖</option><option value="dy_yq">抖音验券</option><option value="tg_yq">团购验券</option><option value="elm">饿了么外卖</option><option value="wx">微信支付</option><option value="alipay">支付宝</option><option value="cash">现金</option>
         </select>
       </div>
       <button class="eb" onclick="expC('cCLine')">导出</button><div id="cCLine" style="height:280px"></div>
@@ -111,12 +111,12 @@ var SK='ft_analytics3',records=[],fInfo=[];
 // 7个独立渠道
 var CH=[
   {k:'mt_wm',n:'美团外卖',c:'#f59e0b'},
-  {k:'mt_yq',n:'美团验券',c:'#fbbf24'},
   {k:'dy_yq',n:'抖音验券',c:'#ef4444'},
-  {k:'dy_wm',n:'抖音外卖',c:'#f87171'},
-  {k:'tb',  n:'淘宝闪购',c:'#3b82f6'},
-  {k:'jd',  n:'京东外卖',c:'#60a5fa'},
-  {k:'cash',n:'现金',    c:'#22c55e'}
+  {k:'tg_yq',n:'团购验券',c:'#a855f7'},
+  {k:'elm',  n:'饿了么外卖',c:'#3b82f6'},
+  {k:'wx',   n:'微信支付',c:'#22c55e'},
+  {k:'alipay',n:'支付宝',c:'#60a5fa'},
+  {k:'cash', n:'现金',    c:'#10b981'}
 ];
 var CHK=CH.map(function(c){return c.k});
 var CHN=CH.map(function(c){return c.n});
@@ -149,13 +149,16 @@ function parseXL(file){
         if(di!==-1&&rows[hi+1])fd=pDate(rows[hi+1][di]);
         if(!fd){for(var i=0;i<=hi;i++){var t=rows[i].join(' '),dm=t.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);if(dm){fd=dm[1]+'-'+dm[2].padStart(2,'0')+'-'+dm[3].padStart(2,'0');break}}}
         if(!fd){no(new Error('无法识别日期'));return}
-        var cm={},cds=[{p:'门店名称',t:'store'},{p:'抖音验券金额',t:'dy_yq'},{p:'现金金额',t:'cash'},{p:'淘宝闪购金额',t:'tb'},{p:'京东外卖金额',t:'jd'},{p:'美团外卖金额',t:'mt_wm'},{p:'美团验券金额',t:'mt_yq'},{p:'抖音外卖金额',t:'dy_wm'},{p:'总支付金额',t:'tp'},{p:'微信支付金额',t:'wx'},{p:'支付宝金额',t:'alipay'},{p:'采购',t:'purchase'}];
+        var cm={},cds=[{p:'门店名称',t:'store'},{p:'营业日期',t:'bizdate'},{p:'总支付金额',t:'tp'},{p:'微信支付金额',t:'wx'},{p:'支付宝金额',t:'alipay'},{p:'现金金额',t:'cash'},{p:'美团外卖金额',t:'mt_wm'},{p:'抖音验券金额',t:'dy_yq'},{p:'团购验券金额',t:'tg_yq'},{p:'饿了么外卖金额',t:'elm'}];
         for(var ci=0;ci<hdr.length;ci++)for(var c of cds)if(hdr[ci].includes(c.p)){cm[c.t]=ci;break}
         var res=[];
         for(var i=hi+1;i<rows.length;i++){
           var rw=rows[i];if(!rw.length)continue;
           var st=cm.store!==undefined?String(rw[cm.store]||'').trim():'';if(!st)continue;
-          var rd2=fd;if(di!==-1&&rw[di]!=null){var pd=pDate(rw[di]);if(pd)rd2=pd}
+          var rd2=fd;
+          // 优先用营业日期列
+          if(cm.bizdate!==undefined&&rw[cm.bizdate]!=null){var pd=pDate(rw[cm.bizdate]);if(pd)rd2=pd}
+          else if(di!==-1&&rw[di]!=null){var pd=pDate(rw[di]);if(pd)rd2=pd}
           var g=function(k){var idx=cm[k];return idx!==undefined?parseFloat(rw[idx])||0:0};
           var rec={date:rd2,store:st};
           for(var ch of CH)rec[ch.k]=g(ch.k);
