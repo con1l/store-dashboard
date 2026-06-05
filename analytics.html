@@ -60,7 +60,7 @@ body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:var(--bg)
     <button class="btn btn-p" onclick="document.getElementById('fi').click()">📁 上传Excel</button>
     <input type="file" id="fi" accept=".xls,.xlsx,.csv" multiple style="display:none" onchange="handleFiles(this.files)">
     <button class="btn btn-p" onclick="loadDemo()">🎲 加载示例数据</button>
-    <button class="btn btn-d" onclick="function clearAll(){if(!confirm('确定清空？'))return;records=[];fInfo=[];localStorage.removeItem(SK);refreshAll()}">🗑 清空数据</button>
+    <button class="btn btn-d" onclick="clearAll()">🗑 清空数据</button>
   </div>
   <div class="sb">
     <div class="i"><div class="n" id="hS">0</div><div class="l">门店</div></div>
