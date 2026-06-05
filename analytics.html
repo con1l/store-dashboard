@@ -337,7 +337,10 @@ function expXLSX(){
   function toSer(d){var b=new Date(1899,11,31);var dd=new Date(d);return Math.round((dd-b)/86400000)+1}
   var PL={mt_wm:'美团外卖',dy_yq:'抖音验券',tt_yq:'团购验券',elm_wm:'饿了么外卖',wx:'微信支付',zfb:'支付宝',xj:'现金'};
   var platforms=Object.keys(PL);
-  var aoa=[['年份',null].concat(dates.map(function(d){return toSer(d)}))];
+  // 表头用可读日期（如 2026-03-01），同时设Excel日期数字值
+  var aoa=[['年份',null].concat(dates)];
+  // 第二行存序列号备用，或者直接用日期字符串更直观
+  // 改为：表头直接用日期字符串，用户打开就能看
   aS.forEach(function(store){
     platforms.forEach(function(pk){
       var row=[store,PL[pk]];
