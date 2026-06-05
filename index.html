@@ -238,13 +238,8 @@ function rebuildData() {
         var stores = f.data[dt];
         if (!DATA[dt]) DATA[dt] = {};
         for (var name of Object.keys(stores)) {
-          var vals = stores[name];
-          if (!DATA[dt][name]) {
-            DATA[dt][name] = { 总支付:0, 抖音验券:0, 微信支付:0, 支付宝:0, 现金:0, 京东外卖:0, 美团外卖:0, 淘宝闪购:0, 美团验券:0, 抖音外卖:0, 采购:0 };
-          }
-          for (var k of Object.keys(vals)) {
-            DATA[dt][name][k] = (DATA[dt][name][k]||0) + vals[k];
-          }
+          // 直接覆盖，不累加——同日期同门店取最新文件的数据
+          DATA[dt][name] = Object.assign({}, stores[name]);
         }
       }
     }
@@ -345,8 +340,11 @@ async function handleUpload(file) {
     }
 
     var files = loadFileList();
-    var exists = files.find(function(f){return f.name === file.name && f.date === fileDate});
-    if (!exists) { files.push({ name: file.name, date: fileDate, data: storeData }); saveFileList(files); }
+    // 按日期去重：同日期的旧文件删掉，用新文件替换
+    var dupIdx = files.findIndex(function(f){return f.date === fileDate});
+    if (dupIdx !== -1) files.splice(dupIdx, 1);
+    files.push({ name: file.name, date: fileDate, data: storeData });
+    saveFileList(files);
     allStores = []; rebuildData(); init(); renderFileList();
     var sc = Object.values(storeData).reduce(function(m,d){return Math.max(m,Object.keys(d).length)},0);
     st.innerHTML = "✅ 上传成功！" + Object.keys(storeData).join(", ") + " · " + sc + " 门店";
