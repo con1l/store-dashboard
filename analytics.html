@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>饭团姐姐 门店数据分析看板</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{--p:#6366f1;--p2:#8b5cf6;--pb:#eef2ff;--ok:#22c55e;--no:#ef4444;--wa:#f59e0b;--bg:#f8fafc;--c:#fff;--t1:#1e293b;--t2:#64748b;--t3:#94a3b8;--bd:#e2e8f0;--r:14px;--rs:10px;--sh:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:var(--bg);color:var(--t1);line-height:1.5}
+.hdr{background:linear-gradient(135deg,#6366f1,#8b5cf6,#a78bfa);color:#fff;padding:24px 32px;border-radius:0 0 24px 24px;box-shadow:0 4px 20px rgba(99,102,241,.25)}
+.hdr h1{font-size:24px;font-weight:700}.hdr h1 span{opacity:.8;font-weight:400}
+.hdr-acts{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center}
+.btn{padding:8px 18px;font-size:13px;font-weight:600;border-radius:var(--rs);cursor:pointer;border:none;transition:all .2s;font-family:inherit}
+.btn-p{background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.35);backdrop-filter:blur(4px)}
+.btn-p:hover{background:rgba(255,255,255,.35);transform:translateY(-1px)}
+.btn-o{background:var(--c);color:var(--p);border:1.5px solid var(--bd)}.btn-o:hover{border-color:#818cf8;background:var(--pb)}
+.btn-d{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}.btn-d:hover{background:#fee2e2}
+.sb{display:flex;gap:20px;margin-top:16px;flex-wrap:wrap}.sb .i{text-align:center;min-width:80px}.sb .n{font-size:26px;font-weight:800}.sb .l{font-size:11px;opacity:.75}
+.w{max-width:1300px;margin:0 auto;padding:24px 20px}
+.fs{background:var(--c);border-radius:var(--r);padding:14px 20px;margin-top:16px;box-shadow:var(--sh);display:flex;align-items:center;gap:10px;flex-wrap:wrap;border:1px solid var(--bd)}
+.fs h3{font-size:14px;font-weight:600;white-space:nowrap}
+.ft{display:inline-flex;align-items:center;gap:6px;background:var(--pb);color:var(--p);padding:4px 12px;border-radius:20px;font-size:12px;font-weight:500}
+.ft .x{color:var(--no);cursor:pointer;font-weight:700;font-size:15px;transition:transform .15s}.ft .x:hover{transform:scale(1.3)}
+.fe{color:var(--t3);font-size:13px}
+.fl{background:var(--c);border-radius:var(--r);padding:20px 24px;margin-top:16px;box-shadow:var(--sh);border:1px solid var(--bd)}
+.fr{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg label{font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.fg select,.fg input[type="date"]{padding:8px 12px;border:1.5px solid var(--bd);border-radius:8px;font-size:13px;font-family:inherit;outline:none;background:var(--c);min-width:140px;transition:border-color .2s}
+.fg select:focus,.fg input[type="date"]:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+.cd{background:var(--c);border-radius:var(--r);padding:22px;box-shadow:var(--sh);border:1px solid var(--bd);position:relative}
+.cd h3{font-size:15px;font-weight:600;margin-bottom:14px;color:var(--t1)}
+.cd .eb{position:absolute;top:14px;right:16px;padding:4px 10px;font-size:11px;font-weight:600;background:var(--pb);color:var(--p);border:1px solid #c7d2fe;border-radius:6px;cursor:pointer;transition:all .2s}
+.cd .eb:hover{background:var(--p);color:#fff}
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.cf{grid-column:1/-1}
+.dt{margin-top:16px;overflow-x:auto}
+.dt table{width:100%;border-collapse:collapse;font-size:13px}
+.dt th{background:var(--p);color:#fff;padding:10px 14px;text-align:right;font-weight:600;font-size:12px;white-space:nowrap}
+.dt th:first-child,.dt th:nth-child(2){text-align:left}
+.dt th:first-child{border-radius:8px 0 0 0}.dt th:last-child{border-radius:0 8px 0 0}
+.dt td{padding:9px 14px;text-align:right;border-bottom:1px solid var(--bd);color:var(--t2)}
+.dt td:first-child,.dt td:nth-child(2){text-align:left;color:var(--t1);font-weight:600}
+.dt tr:hover td{background:var(--pb)}.dt .tr td{font-weight:700;color:var(--p);background:var(--pb);border-top:2px solid var(--p)}
+.cmp{background:linear-gradient(135deg,#faf5ff,#eef2ff);border-radius:var(--r);padding:22px 24px;margin-top:16px;border:1px solid #e9d5ff}
+.cmp h3{font-size:16px;font-weight:700;color:#7c3aed;margin-bottom:14px}
+.cb{background:var(--c);border-radius:var(--rs);padding:14px 18px;border:1px solid var(--bd);flex:1;min-width:200px}
+.cb h4{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:8px}
+.st{font-size:16px;font-weight:700;color:var(--t1);margin:24px 0 4px;border-left:4px solid var(--p);padding-left:12px}
+.emp{text-align:center;padding:60px 20px;color:var(--t3);font-size:15px}.emp .ic{font-size:48px;margin-bottom:12px}
+@media(max-width:768px){.cg{grid-template-columns:1fr}.fr{flex-direction:column}.hdr{padding:18px}.sb .n{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>🍙 饭团姐姐 <span>门店数据分析看板</span></h1>
+  <div class="hdr-acts">
+    <button class="btn btn-p" onclick="document.getElementById('fi').click()">📁 上传Excel</button>
+    <input type="file" id="fi" accept=".xls,.xlsx,.csv" multiple style="display:none" onchange="handleFiles(this.files)">
+    <button class="btn btn-p" onclick="loadDemo()">🎲 加载示例数据</button>
+    <button class="btn btn-d" onclick="clearAll()">🗑 清空数据</button>
+  </div>
+  <div class="sb">
+    <div class="i"><div class="n" id="hS">0</div><div class="l">门店</div></div>
+    <div class="i"><div class="n" id="hD">0</div><div class="l">天数</div></div>
+    <div class="i"><div class="n" id="hT">¥0</div><div class="l">总销售额</div></div>
+  </div>
+</div>
+<div class="w">
+  <div class="fs"><h3>📂 已上传</h3><div id="ft"><span class="fe">暂无文件</span></div></div>
+  <div class="fl"><div class="fr">
+    <div class="fg"><label>门店</label><select id="fS" onchange="refresh()"><option value="">-- 全部门店 --</option></select></div>
+    <div class="fg"><label>起始日期</label><input type="date" id="fA" onchange="refresh()"></div>
+    <div class="fg"><label>结束日期</label><input type="date" id="fB" onchange="refresh()"></div>
+    <div class="fg" style="justify-content:flex-end"><label>&nbsp;</label><button class="btn btn-o" onclick="resetF()">重置筛选</button></div>
+  </div></div>
+  <div class="st">📋 数据明细</div>
+  <div class="cd" id="tc"><div class="dt" id="tw"><div class="emp"><div class="ic">📊</div><p>上传 Excel 或加载示例数据开始分析</p></div></div></div>
+  <div class="st">📈 门店分析</div>
+  <div class="cg">
+    <div class="cd"><h3>各渠道销售额</h3><button class="eb" onclick="expC('cBar')">导出</button><div id="cBar" style="height:340px"></div></div>
+    <div class="cd"><h3>渠道销售占比</h3><button class="eb" onclick="expC('cPie')">导出</button><div id="cPie" style="height:340px"></div></div>
+    <div class="cd cf"><h3>每日渠道销售趋势</h3><button class="eb" onclick="expC('cLine')">导出</button><div id="cLine" style="height:320px"></div></div>
+  </div>
+  <div class="st">⏱ 时段对比</div>
+  <div class="cmp"><div class="fr">
+    <div class="cb"><h4>🔵 时段 A</h4><div class="fg"><label>起始</label><input type="date" id="aA"></div><div class="fg" style="margin-top:6px"><label>结束</label><input type="date" id="aB"></div></div>
+    <div class="cb"><h4>🟣 时段 B</h4><div class="fg"><label>起始</label><input type="date" id="bA"></div><div class="fg" style="margin-top:6px"><label>结束</label><input type="date" id="bB"></div></div>
+    <div class="fg" style="justify-content:flex-end"><label>&nbsp;</label><button class="btn btn-p" onclick="runCmp()" style="background:#7c3aed;border-color:#7c3aed">📊 对比</button></div>
+  </div></div>
+  <div class="cg" id="cmpArea" style="display:none">
+    <div class="cd"><h3>时段对比 - 分组柱状图</h3><button class="eb" onclick="expC('cCBar')">导出</button><div id="cCBar" style="height:340px"></div></div>
+    <div class="cd"><h3>时段对比 - 占比</h3><button class="eb" onclick="expC('cCPie')">导出</button><div id="cCPie" style="height:340px"></div></div>
+    <div class="cd cf">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <h3 style="margin:0">时段对比 - 每日趋势</h3>
+        <select id="cpP" onchange="updCmpL()" style="padding:5px 10px;border:1px solid var(--bd);border-radius:6px;font-size:12px">
+          <option value="mt_wm">美团外卖</option><option value="mt_yq">美团验券</option><option value="dy_yq">抖音验券</option><option value="dy_wm">抖音外卖</option><option value="tb">淘宝闪购</option><option value="jd">京东外卖</option><option value="cash">现金</option>
+        </select>
+      </div>
+      <button class="eb" onclick="expC('cCLine')">导出</button><div id="cCLine" style="height:280px"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══ 数据层 ═══
+var SK='ft_analytics3',records=[],fInfo=[];
+// 7个独立渠道
+var CH=[
+  {k:'mt_wm',n:'美团外卖',c:'#f59e0b'},
+  {k:'mt_yq',n:'美团验券',c:'#fbbf24'},
+  {k:'dy_yq',n:'抖音验券',c:'#ef4444'},
+  {k:'dy_wm',n:'抖音外卖',c:'#f87171'},
+  {k:'tb',  n:'淘宝闪购',c:'#3b82f6'},
+  {k:'jd',  n:'京东外卖',c:'#60a5fa'},
+  {k:'cash',n:'现金',    c:'#22c55e'}
+];
+var CHK=CH.map(function(c){return c.k});
+var CHN=CH.map(function(c){return c.n});
+var CHC=CH.map(function(c){return c.c});
+
+function loadS(){try{return JSON.parse(localStorage.getItem(SK))||{r:[],f:[]}}catch(e){return{r:[],f:[]}}}
+function saveS(){localStorage.setItem(SK,JSON.stringify({r:records,f:fInfo}))}
+
+function pDate(raw){
+  if(!raw)return'';var d=null;
+  if(typeof raw==='number')d=new Date((raw-25569)*864e5);
+  else if(raw instanceof Date)d=raw;
+  else{var s=String(raw).trim(),m=s.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);if(m)return m[1]+'-'+m[2].padStart(2,'0')+'-'+m[3].padStart(2,'0');d=new Date(s)}
+  if(d&&!isNaN(d))return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return'';
+}
+
+function parseXL(file){
+  return new Promise(function(ok,no){
+    var rd=new FileReader();
+    rd.onload=function(e){
+      try{
+        var wb=XLSX.read(e.target.result,{type:'array'}),sh=wb.Sheets[wb.SheetNames[0]];
+        var rows=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+        if(rows.length<3){no(new Error('数据行不足'));return}
+        var hi=-1,hdr=[];
+        for(var i=0;i<Math.min(rows.length,20);i++){var rw=rows[i].map(function(h){return String(h).trim()});if(rw.some(function(h){return h.includes('门店')})){hi=i;hdr=rw;break}}
+        if(hi===-1){no(new Error('找不到门店列'));return}
+        var fd='',di=hdr.findIndex(function(h){return h.includes('日期')});
+        if(di!==-1&&rows[hi+1])fd=pDate(rows[hi+1][di]);
+        if(!fd){for(var i=0;i<=hi;i++){var t=rows[i].join(' '),dm=t.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);if(dm){fd=dm[1]+'-'+dm[2].padStart(2,'0')+'-'+dm[3].padStart(2,'0');break}}}
+        if(!fd){no(new Error('无法识别日期'));return}
+        var cm={},cds=[{p:'门店名称',t:'store'},{p:'抖音验券金额',t:'dy_yq'},{p:'现金金额',t:'cash'},{p:'淘宝闪购金额',t:'tb'},{p:'京东外卖金额',t:'jd'},{p:'美团外卖金额',t:'mt_wm'},{p:'美团验券金额',t:'mt_yq'},{p:'抖音外卖金额',t:'dy_wm'},{p:'总支付金额',t:'tp'},{p:'微信支付金额',t:'wx'},{p:'支付宝金额',t:'alipay'},{p:'采购',t:'purchase'}];
+        for(var ci=0;ci<hdr.length;ci++)for(var c of cds)if(hdr[ci].includes(c.p)){cm[c.t]=ci;break}
+        var res=[];
+        for(var i=hi+1;i<rows.length;i++){
+          var rw=rows[i];if(!rw.length)continue;
+          var st=cm.store!==undefined?String(rw[cm.store]||'').trim():'';if(!st)continue;
+          var rd2=fd;if(di!==-1&&rw[di]!=null){var pd=pDate(rw[di]);if(pd)rd2=pd}
+          var g=function(k){var idx=cm[k];return idx!==undefined?parseFloat(rw[idx])||0:0};
+          var rec={date:rd2,store:st};
+          for(var ch of CH)rec[ch.k]=g(ch.k);
+          res.push(rec);
+        }
+        ok({date:fd,records:res});
+      }catch(e){no(e)}
+    };
+    rd.onerror=function(){no(new Error('读取失败'))};
+    rd.readAsArrayBuffer(file);
+  });
+}
+
+async function handleFiles(files){
+  if(!files||!files.length)return;
+  for(var i=0;i<files.length;i++){
+    try{
+      var r=await parseXL(files[i]);
+      // 按(date,store)去重：新数据覆盖旧数据
+      var newKeys=new Set(r.records.map(function(x){return x.date+'|'+x.store}));
+      records=records.filter(function(x){return !newKeys.has(x.date+'|'+x.store)});
+      records=records.concat(r.records);
+      // fileInfo按日期去重
+      var newDates=new Set(r.records.map(function(x){return x.date}));
+      fInfo=fInfo.filter(function(x){return !newDates.has(x.date)});
+      fInfo.push({name:files[i].name,date:r.date});
+    }
+    catch(e){alert('解析失败: '+files[i].name+' - '+e.message)}
+  }
+  saveS();refreshAll();
+}
+
+function clearAll(){if(!confirm('确定清空？'))return;records=[];fInfo=[];localStorage.removeItem(SK);refreshAll()}
+
+function loadDemo(){
+  var ss=['国瑞店','崇文门店','望京店','中关村店','三里屯店'],ds=[];
+  for(var i=0;i<7;i++){var d=new Date(2026,5,1+i);ds.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'))}
+  records=[];
+  for(var s of ss)for(var d of ds){
+    var b=300+Math.random()*1500;
+    records.push({date:d,store:s,mt_wm:Math.round(b*(.25+Math.random()*.2)),mt_yq:Math.round(b*(.05+Math.random()*.1)),dy_yq:Math.round(b*(.1+Math.random()*.15)),dy_wm:Math.round(b*(.05+Math.random()*.1)),tb:Math.round(b*(.08+Math.random()*.12)),jd:Math.round(b*(.03+Math.random()*.08)),cash:Math.round(b*(.03+Math.random()*.07))});
+  }
+  fInfo=[{name:'示例数据',date:'2026-06-01~07'}];saveS();refreshAll();
+}
+
+// ═══ UI ═══
+function gStores(){return[...new Set(records.map(function(r){return r.store}))].sort()}
+function gDates(){return[...new Set(records.map(function(r){return r.date}))].sort()}
+
+function refreshAll(){
+  var el=document.getElementById('ft');
+  el.innerHTML=fInfo.length===0?'<span class="fe">暂无文件</span>':fInfo.map(function(f,i){return'<span class="ft">'+f.name+' ('+f.date+') <span class="x" onclick="rmFile('+i+')">×</span></span>'}).join('');
+  var ad=gDates(),as=gStores();
+  document.getElementById('hS').textContent=as.length;
+  document.getElementById('hD').textContent=ad.length;
+  var tot=records.reduce(function(a,r){var s=0;for(var ch of CH)s+=r[ch.k]||0;return a+s},0);
+  document.getElementById('hT').textContent='¥'+(tot/1e4).toFixed(1)+'万';
+  var sel=document.getElementById('fS'),cv=sel.value;
+  sel.innerHTML='<option value="">-- 全部门店 --</option>'+as.map(function(s){return'<option value="'+s+'">'+s+'</option>'}).join('');
+  if(cv&&as.includes(cv))sel.value=cv;
+  if(ad.length>0&&!document.getElementById('fA').value){document.getElementById('fA').value=ad[0];document.getElementById('fB').value=ad[ad.length-1]}
+  refresh();
+}
+
+function rmFile(i){if(i<0||i>=fInfo.length)return;var d=fInfo[i].date;records=records.filter(function(r){return r.date!==d});fInfo.splice(i,1);saveS();refreshAll()}
+function resetF(){document.getElementById('fS').value='';document.getElementById('fA').value='';document.getElementById('fB').value='';refresh()}
+
+function getF(){
+  var s=document.getElementById('fS').value,a=document.getElementById('fA').value,b=document.getElementById('fB').value;
+  return records.filter(function(r){if(s&&r.store!==s)return false;if(a&&r.date<a)return false;if(b&&r.date>b)return false;return true}).sort(function(a,b){return a.date<b.date?-1:1});
+}
+
+function refresh(){var d=getF();rTable(d);rCharts(d)}
+
+function rowTotal(r){var s=0;for(var ch of CH)s+=r[ch.k]||0;return s}
+
+// ── 表格 ──
+function rTable(data){
+  var w=document.getElementById('tw');
+  if(!data.length){w.innerHTML='<div class="emp"><div class="ic">📊</div><p>选择门店和日期范围查看数据</p></div>';return}
+  var th='<th>日期</th><th>门店</th>';for(var ch of CH)th+='<th>'+ch.n+'</th>';th+='<th>总销售额</th>';
+  var h='<table><thead><tr>'+th+'</tr></thead><tbody>';
+  var totals={};for(var ch of CH)totals[ch.k]=0;tots=0;
+  for(var r of data){
+    var t=rowTotal(r);
+    h+='<tr><td>'+r.date+'</td><td>'+r.store+'</td>';
+    for(var ch of CH)h+='<td>¥'+(r[ch.k]||0).toFixed(2)+'</td>';
+    h+='<td><b>¥'+t.toFixed(2)+'</b></td></tr>';
+    for(var ch of CH)totals[ch.k]+=(r[ch.k]||0);tots+=t;
+  }
+  h+='<tr class="tr"><td colspan="2">合计</td>';
+  for(var ch of CH)h+='<td>¥'+totals[ch.k].toFixed(2)+'</td>';
+  h+='<td>¥'+tots.toFixed(2)+'</td></tr></tbody></table>';
+  w.innerHTML=h;
+}
+
+// ── 图表 ──
+var EC={};
+function gc(id){if(!EC[id])EC[id]=echarts.init(document.getElementById(id));return EC[id]}
+
+function rCharts(data){
+  // 柱状图
+  var bar=gc('cBar'),agg={};
+  for(var ch of CH)agg[ch.k]=0;
+  for(var r of data)for(var ch of CH)agg[ch.k]+=(r[ch.k]||0);
+  bar.setOption({tooltip:{trigger:'axis'},grid:{left:70,right:20,top:20,bottom:40},xAxis:{type:'category',data:CHN,axisTick:{alignWithLabel:true},axisLabel:{fontSize:11}},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:[{type:'bar',data:CH.map(function(ch,i){return{name:ch.n,value:Math.round(agg[ch.k]*100)/100,itemStyle:{color:CHC[i],borderRadius:[6,6,0,0]}}}),barWidth:'55%'}]});
+
+  // 饼图
+  var pie=gc('cPie');
+  pie.setOption({tooltip:{trigger:'item',formatter:'{b}: ¥{c} ({d}%)'},legend:{bottom:0,textStyle:{fontSize:11},type:'scroll'},series:[{type:'pie',radius:['35%','65%'],label:{formatter:'{b}\n{d}%'},data:CH.map(function(ch,i){return{name:ch.n,value:Math.round(agg[ch.k]*100)/100,itemStyle:{color:CHC[i]}}}),emphasis:{itemStyle:{shadowBlur:10,shadowColor:'rgba(0,0,0,.2)'}}}]});
+
+  // 趋势线（按日期聚合，支持全部门店）
+  var line=gc('cLine');
+  var dMap={};for(var r of data){if(!dMap[r.date])dMap[r.date]={};for(var ch of CH){if(!dMap[r.date][ch.k])dMap[r.date][ch.k]=0;dMap[r.date][ch.k]+=(r[ch.k]||0)}}
+  var xD=Object.keys(dMap).sort();
+  line.setOption({tooltip:{trigger:'axis'},legend:{data:CHN,bottom:0,textStyle:{fontSize:11},type:'scroll'},grid:{left:70,right:20,top:20,bottom:50},xAxis:{type:'category',data:xD},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:CH.map(function(ch,i){return{name:ch.n,type:'line',smooth:true,data:xD.map(function(d){return dMap[d][ch.k]||0}),lineStyle:{width:2},itemStyle:{color:CHC[i]}}})});
+}
+
+// ── 导出图表 ─══
+function expC(id){var url=EC[id].getDataURL({type:'png',pixelRatio:2,backgroundColor:'#fff'});var a=document.createElement('a');a.href=url;a.download=id+'.png';a.click()}
+
+// ── 时段对比 ─═
+function runCmp(){
+  var store=document.getElementById('fS').value;
+  var aA=document.getElementById('aA').value,aB=document.getElementById('aB').value;
+  var bA=document.getElementById('bA').value,bB=document.getElementById('bB').value;
+  if(!aA||!aB||!bA||!bB){alert('请选择两个时段的日期范围');return}
+  if(!store){alert('请先选择一个门店');return}
+  var rA=records.filter(function(r){return r.store===store&&r.date>=aA&&r.date<=aB}).sort(function(a,b){return a.date<b.date?-1:1});
+  var rB=records.filter(function(r){return r.store===store&&r.date>=bA&&r.date<=bB}).sort(function(a,b){return a.date<b.date?-1:1});
+  var aggA={},aggB={};for(var ch of CH){aggA[ch.k]=0;aggB[ch.k]=0}
+  for(var r of rA)for(var ch of CH)aggA[ch.k]+=(r[ch.k]||0);
+  for(var r of rB)for(var ch of CH)aggB[ch.k]+=(r[ch.k]||0);
+
+  document.getElementById('cmpArea').style.display='';
+
+  // 分组柱状图
+  var cb=gc('cCBar');
+  cb.setOption({tooltip:{trigger:'axis'},legend:{data:['时段A','时段B'],bottom:0},grid:{left:70,right:20,top:20,bottom:40},xAxis:{type:'category',data:CHN,axisLabel:{fontSize:11}},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:[
+    {name:'时段A',type:'bar',data:CH.map(function(ch){return Math.round(aggA[ch.k]*100)/100}),itemStyle:{color:'#6366f1',borderRadius:[6,6,0,0]},barGap:'10%'},
+    {name:'时段B',type:'bar',data:CH.map(function(ch){return Math.round(aggB[ch.k]*100)/100}),itemStyle:{color:'#a78bfa',borderRadius:[6,6,0,0]}}
+  ]});
+
+  // 双饼图
+  var cp=gc('cCPie');
+  cp.setOption({tooltip:{trigger:'item',formatter:'{b}: ¥{c} ({d}%)'},legend:{bottom:0,textStyle:{fontSize:11},type:'scroll'},series:[
+    {type:'pie',radius:['25%','50%'],center:['25%','48%'],label:{formatter:'{b}\n{d}%',fontSize:10},data:CH.map(function(ch,i){return{name:ch.n,value:Math.round(aggA[ch.k]*100)/100,itemStyle:{color:CHC[i]}}})},
+    {type:'pie',radius:['25%','50%'],center:['75%','48%'],label:{formatter:'{b}\n{d}%',fontSize:10},data:CH.map(function(ch,i){return{name:ch.n,value:Math.round(aggB[ch.k]*100)/100,itemStyle:{color:CHC[i]}}})}
+  ],graphic:[{type:'text',left:'22%',top:'2%',style:{text:'时段A',fontSize:14,fontWeight:600,fill:'#6366f1'}},{type:'text',left:'72%',top:'2%',style:{text:'时段B',fontSize:14,fontWeight:600,fill:'#a78bfa'}}]});
+
+  window._cmpA=rA;window._cmpB=rB;window._cmpAlabel=aA+'~'+aB;window._cmpBlabel=bA+'~'+bB;
+  updCmpL();
+}
+
+function updCmpL(){
+  var pk=document.getElementById('cpP').value;
+  var rA=window._cmpA||[],rB=window._cmpB||[];
+  // 按日期聚合（单个门店每天一条，但防重复）
+  function aggByDate(arr,pk){
+    var m={};for(var r of arr){if(!m[r.date])m[r.date]=0;m[r.date]+=(r[pk]||0)}
+    var dates=Object.keys(m).sort();
+    return{dates:dates,vals:dates.map(function(d){return Math.round(m[d]*100)/100})};
+  }
+  var dA=aggByDate(rA,pk),dB=aggByDate(rB,pk);
+  // 合并日期轴
+  var allDates=[...new Set(dA.dates.concat(dB.dates))].sort();
+  var mapA={};dA.dates.forEach(function(d,i){mapA[d]=dA.vals[i]});
+  var mapB={};dB.dates.forEach(function(d,i){mapB[d]=dB.vals[i]});
+  var cl=gc('cCLine');
+  cl.setOption({tooltip:{trigger:'axis'},legend:{data:[window._cmpAlabel||'时段A',window._cmpBlabel||'时段B'],bottom:0,textStyle:{fontSize:12}},grid:{left:70,right:20,top:20,bottom:40},xAxis:{type:'category',data:allDates},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:[
+    {name:window._cmpAlabel||'时段A',type:'line',smooth:true,data:allDates.map(function(d){return mapA[d]||null}),connectNulls:true,lineStyle:{width:2},itemStyle:{color:'#6366f1'}},
+    {name:window._cmpBlabel||'时段B',type:'line',smooth:true,data:allDates.map(function(d){return mapB[d]||null}),connectNulls:true,lineStyle:{width:2},itemStyle:{color:'#a78bfa'}}
+  ]});
+}
+
+// ── 启动 ─══
+var stored=loadS();records=stored.r;fInfo=stored.f;
+refreshAll();
+window.addEventListener('resize',function(){for(var k in EC)EC[k].resize()});
+</script>
+</body>
+</html>
