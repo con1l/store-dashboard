@@ -321,7 +321,7 @@ function rCharts(data){
   var xD=Object.keys(dMap).sort();
   var picked=document.getElementById('lineCh').value;
   var showCH=picked?CH.filter(function(ch){return ch.k===picked}):CH;
-  line.setOption({tooltip:{trigger:'axis'},legend:{data:showCH.map(function(ch){return ch.n}),bottom:0,textStyle:{fontSize:11},type:'scroll'},grid:{left:70,right:20,top:20,bottom:50},xAxis:{type:'category',data:xD},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:showCH.map(function(ch,i){return{name:ch.n,type:'line',smooth:true,data:xD.map(function(d){return dMap[d][ch.k]||0}),lineStyle:{width:2},itemStyle:{color:ch.c}}})});
+  line.setOption({tooltip:{trigger:'axis'},legend:{data:showCH.map(function(ch){return ch.n}),bottom:0,textStyle:{fontSize:11},type:'scroll'},grid:{left:70,right:20,top:20,bottom:50},xAxis:{type:'category',data:xD},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:showCH.map(function(ch,i){return{name:ch.n,type:'line',smooth:true,data:xD.map(function(d){return dMap[d][ch.k]||0}),lineStyle:{width:2},itemStyle:{color:ch.c}}})},true);
 }
 
 // ── 导出图表 ─══
