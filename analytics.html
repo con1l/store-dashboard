@@ -342,13 +342,11 @@ function expXLSX(){
   var selStores=getSelectedStores();var aS=selStores.length?selStores:gStores();
   var dMap={};data.forEach(function(r){dMap[r.date]=1});
   var dates=Object.keys(dMap).sort();
-  function toSer(d){var b=new Date(1899,11,31);var dd=new Date(d);return Math.round((dd-b)/86400000)+1}
   var PL={tp:'总支付金额',wx:'微信支付',alipay:'支付宝',cash:'现金',jd_wm:'京东外卖',mt_yq:'美团验券',dy_yq:'抖音验券',mt_wm:'美团外卖',tb_sg:'淘宝闪购',dy_wm:'抖音外卖',tg_yq:'团购验券',elm:'饿了么外卖',ysf:'云闪付'};
   var platforms=Object.keys(PL);
-  // 表头用可读日期（如 2026-03-01），同时设Excel日期数字值
-  var aoa=[['年份',null].concat(dates)];
-  // 第二行存序列号备用，或者直接用日期字符串更直观
-  // 改为：表头直接用日期字符串，用户打开就能看
+
+  // ── Sheet1: 支付明细（门店×渠道×日期矩阵）
+  var aoa=[['门店','渠道'].concat(dates)];
   aS.forEach(function(store){
     platforms.forEach(function(pk){
       var row=[store,PL[pk]];
@@ -359,8 +357,26 @@ function expXLSX(){
       aoa.push(row);
     });
   });
-  var ws=XLSX.utils.aoa_to_sheet(aoa);
-  var wb={SheetNames:['支付明细'],Sheets:{'支付明细':ws}};
+  var ws1=XLSX.utils.aoa_to_sheet(aoa);
+  // 设置列宽
+  ws1['!cols']=[{wch:18},{wch:12}].concat(dates.map(function(){return{wch:12}}));
+
+  // ── Sheet2: 趋势透视表（日期为行，门店+渠道为列）
+  // 结构：日期 | 门店1-总支付金额 | 门店1-微信支付 | ... | 门店2-总支付金额 | ...
+  var cols=[];aS.forEach(function(s){platforms.forEach(function(pk){cols.push(s+'-'+PL[pk])})});
+  var aoa2=[['日期'].concat(cols)];
+  dates.forEach(function(d){
+    var row=[d];
+    aS.forEach(function(store){
+      var rec=data.find(function(r){return r.store===store&&r.date===d});
+      platforms.forEach(function(pk){row.push(rec?(rec[pk]||0):0)});
+    });
+    aoa2.push(row);
+  });
+  var ws2=XLSX.utils.aoa_to_sheet(aoa2);
+  ws2['!cols']=[{wch:12}].concat(cols.map(function(){return{wch:14}}));
+
+  var wb={SheetNames:['支付明细','趋势数据'],Sheets:{'支付明细':ws1,'趋势数据':ws2}};
   var fname='门店渠道支付明细_'+new Date().toISOString().slice(0,10)+'.xlsx';
   var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
   var blob=new Blob([buf],{type:'application/octet-stream'});
