@@ -3,72 +3,167 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>饭团姐姐门店数据看板</title>
+<title>饭团姐姐 门店数据看板</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
+:root {
+  --primary: #6366f1;
+  --primary-light: #818cf8;
+  --primary-bg: #eef2ff;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --text: #1e293b;
+  --text-2: #64748b;
+  --text-3: #94a3b8;
+  --border: #e2e8f0;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.04);
+  --radius: 14px;
+  --radius-sm: 10px;
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f0f2f5;color:#222}
+body{font-family:'Microsoft YaHei','PingFang SC','Noto Sans SC',sans-serif;background:var(--bg);color:var(--text);line-height:1.5}
 
-/* 详情页 */
-.detail-view{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#f0f2f5;z-index:100;overflow-y:auto}
+/* ── 头部 ── */
+.header{background:linear-gradient(135deg,#6366f1 0%,#8b5cf6 50%,#a78bfa 100%);color:#fff;padding:28px 32px;border-radius:0 0 24px 24px;box-shadow:0 4px 20px rgba(99,102,241,.25)}
+.header h1{font-size:24px;font-weight:700;letter-spacing:.5px}
+.header h1 span{opacity:.85;font-weight:400}
+.header-stats{display:flex;gap:28px;margin-top:18px;flex-wrap:wrap;align-items:center}
+.header-stats .stat-item{text-align:center;min-width:80px}
+.header-stats .stat-item .num{font-size:28px;font-weight:800;letter-spacing:-.5px}
+.header-stats .stat-item .label{font-size:12px;opacity:.75;margin-top:2px}
+.upload-btn{padding:8px 20px;font-size:13px;font-weight:600;background:rgba(255,255,255,.2);color:#fff;border:1.5px solid rgba(255,255,255,.35);border-radius:var(--radius-sm);cursor:pointer;transition:all .2s;white-space:nowrap;backdrop-filter:blur(4px)}
+.upload-btn:hover{background:rgba(255,255,255,.35);transform:translateY(-1px)}
+
+/* ── 通用布局 ── */
+.wrap{max-width:1200px;margin:0 auto;padding:24px 20px}
+
+/* ── 文件区域 ── */
+.file-section{background:var(--card);border-radius:var(--radius);padding:16px 20px;margin-top:20px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid var(--border)}
+.file-section h3{font-size:14px;color:var(--text);font-weight:600;white-space:nowrap}
+.file-tag{display:inline-flex;align-items:center;gap:6px;background:var(--primary-bg);color:var(--primary);padding:5px 14px;border-radius:20px;font-size:13px;font-weight:500}
+.file-tag .del{color:var(--danger);cursor:pointer;font-weight:700;font-size:16px;line-height:1;margin-left:2px;transition:transform .15s}
+.file-tag .del:hover{transform:scale(1.3)}
+.file-empty{color:var(--text-3);font-size:13px}
+.btn-sm{padding:6px 14px;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;border:none;transition:all .2s}
+.btn-sm.green{background:#ecfdf5;color:#059669;border:1px solid #a7f3d0}
+.btn-sm.green:hover{background:#d1fae5}
+.btn-sm.red{background:#fef2f2;color:#dc2626;border:1px solid #fecaca}
+.btn-sm.red:hover{background:#fee2e2}
+
+#uploadStatus{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 18px;font-size:14px;box-shadow:var(--shadow)}
+
+/* ── 搜索 ── */
+.search-bar{margin-top:20px}
+.search-bar input{width:100%;padding:12px 18px 12px 42px;font-size:15px;border:1.5px solid var(--border);border-radius:var(--radius-sm);outline:none;font-family:inherit;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85zm-5.242.156a5 5 0 1 1 0-10 5 5 0 0 1 0 10z'/%3E%3C/svg%3E") 16px center no-repeat;transition:border-color .2s,box-shadow .2s}
+.search-bar input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.1)}
+
+/* ── 图表区 ── */
+.charts{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+.chart-card{background:var(--card);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);border:1px solid var(--border)}
+.chart-card h3{font-size:15px;color:var(--text);font-weight:600;margin-bottom:16px}
+
+/* ── 门店卡片网格 ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-top:20px}
+.card{background:var(--card);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);transition:all .25s;cursor:pointer;border:1px solid var(--border);position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--primary-light));opacity:0;transition:opacity .25s}
+.card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px);border-color:var(--primary-light)}
+.card:hover::before{opacity:1}
+.card h4{font-size:14px;color:var(--text);font-weight:600;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .card-num{font-size:30px;font-weight:800;color:var(--primary);margin:6px 0 4px;letter-spacing:-.5px}
+.card .card-sub{font-size:12px;color:var(--text-3)}
+
+/* ── 表格 ── */
+.daily-table{background:var(--card);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);overflow-x:auto;margin-top:20px;border:1px solid var(--border)}
+.daily-table h3{font-size:15px;color:var(--text);font-weight:600;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--primary);color:#fff;padding:11px 14px;text-align:right;white-space:nowrap;font-weight:600;font-size:12px;letter-spacing:.3px}
+th:first-child{text-align:left;border-radius:8px 0 0 8px}
+th:last-child{border-radius:0 8px 8px 0}
+td{padding:10px 14px;text-align:right;border-bottom:1px solid var(--border);color:var(--text-2)}
+td:first-child{text-align:left;color:var(--text);font-weight:600}
+tr:hover td{background:var(--primary-bg)}
+.sum-row td{background:#fffbeb!important;font-weight:700;color:var(--warning)!important}
+
+/* ── 门店列表 ── */
+.store-list{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-top:20px;border:1px solid var(--border)}
+.store-list h3{font-size:15px;color:var(--text);font-weight:600;margin-bottom:12px}
+.store-row{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-radius:var(--radius-sm);cursor:pointer;transition:all .15s}
+.store-row:hover{background:var(--primary-bg)}
+.store-row .sn{font-size:14px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.store-row .sv{font-size:16px;font-weight:700;color:var(--primary);margin-left:16px}
+
+/* ── 详情页 ── */
+.detail-view{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:var(--bg);z-index:100;overflow-y:auto}
 .detail-view.active{display:block}
-.detail-wrap{max-width:1100px;margin:0 auto;padding:20px}
-.back-btn{display:inline-flex;align-items:center;gap:6px;padding:7px 16px;background:#fff;border-radius:8px;text-decoration:none;color:#4472C4;font-size:14px;margin-bottom:16px;cursor:pointer;border:none;font-family:inherit}
-.back-btn:hover{background:#f0f5ff}
-.title-box{background:#fff;border-radius:12px;padding:24px 28px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.title-box h1{font-size:22px;color:#1a1a1a;margin-bottom:4px}
-.title-box .sub{font-size:13px;color:#888}
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:20px}
-.stat-c{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.stat-c .sl{font-size:12px;color:#888;margin-bottom:6px}
-.stat-c .sv{font-size:22px;font-weight:700;color:#1a1a1a}
-.stat-c .sc{font-size:12px;margin-top:4px}
-.stat-c .sc.up{color:#52c41a}.stat-c .sc.down{color:#f5222d}.stat-c .sc.neu{color:#999}
+.detail-wrap{max-width:1100px;margin:0 auto;padding:24px 20px}
+.back-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;background:var(--card);border-radius:var(--radius-sm);color:var(--primary);font-size:14px;font-weight:600;margin-bottom:20px;cursor:pointer;border:1.5px solid var(--border);font-family:inherit;transition:all .2s}
+.back-btn:hover{background:var(--primary-bg);border-color:var(--primary-light)}
+.title-box{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:var(--radius);padding:28px 32px;margin-bottom:24px;box-shadow:0 4px 20px rgba(99,102,241,.2)}
+.title-box h1{font-size:24px;font-weight:700;margin-bottom:4px}
+.title-box .sub{font-size:13px;opacity:.8}
 
-/* 文件列表 */
-.file-section{background:#fff;border-radius:12px;padding:16px 20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.file-section h3{font-size:14px;color:#333;margin-right:8px;white-space:nowrap}
-.file-tag{display:inline-flex;align-items:center;gap:6px;background:#f0f5ff;color:#4472C4;padding:5px 12px;border-radius:20px;font-size:13px}
-.file-tag .del{color:#f5222d;cursor:pointer;font-weight:700;margin-left:4px;font-size:15px}
-.file-tag .del:hover{color:#c41d3c}
-.file-empty{color:#999;font-size:13px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px;margin-bottom:24px}
+.stat-c{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);border:1px solid var(--border);transition:all .2s}
+.stat-c:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.stat-c .sl{font-size:12px;color:var(--text-3);font-weight:500;text-transform:uppercase;letter-spacing:.5px}
+.stat-c .sv{font-size:24px;font-weight:800;color:var(--text);margin-top:6px}
+.stat-c .sc{font-size:12px;margin-top:4px;font-weight:600}
+.stat-c .sc.up{color:var(--success)}
+.stat-c .sc.down{color:var(--danger)}
+.stat-c .sc.neu{color:var(--text-3)}
 
-.procurement-section{margin-bottom:20px}
+.procurement-section{margin-bottom:24px}
+
+/* ── 响应式 ── */
+@media(max-width:768px){
+  .header{padding:20px}
+  .header h1{font-size:20px}
+  .header-stats .stat-item .num{font-size:22px}
+  .charts{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ── 空状态 ── */
+.empty-state{text-align:center;padding:60px 20px;color:var(--text-3)}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+.empty-state p{font-size:15px}
 </style>
 </head>
 <body>
 
-<!-- 主应用内容 -->
-<div id="appContent">
-
 <!-- ========== 主页 ========== -->
 <div class="wrap" id="mainView">
   <div class="header">
-    <h1>🍙 <span>饭团姐姐</span> 门店数据看板</h1>
-    <div class="stat">
+    <h1>🍙 饭团姐姐 <span>门店数据看板</span></h1>
+    <div class="header-stats">
       <div class="stat-item"><div class="num" id="sStores">--</div><div class="label">门店数</div></div>
       <div class="stat-item"><div class="num" id="sDates">--</div><div class="label">数据天数</div></div>
-            <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
+      <div class="stat-item"><div class="num" id="sTotal">--</div><div class="label">总金额合计</div></div>
       <button class="upload-btn" onclick="document.getElementById('fileInput').click()">📁 上传数据</button>
       <input type="file" id="fileInput" accept=".xls,.xlsx,.csv" style="display:none" onchange="handleUpload(this.files[0])">
     </div>
   </div>
-  <div id="uploadStatus" style="display:none;background:#fff;padding:14px 20px;border-radius:12px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)"></div>
 
-  
-  <div class="file-section" id="fileSection">
-    <h3>📂 已上传文件</h3>
+  <div id="uploadStatus" style="display:none"></div>
+
+  <div class="file-section">
+    <h3>📂 已上传</h3>
     <div id="fileTags"></div>
-    <button class="upload-btn" style="padding:6px 14px;font-size:13px" onclick="document.getElementById('fileInput').click()">+ 添加文件</button>
-    <button class="upload-btn" style="padding:6px 14px;font-size:13px;background:#f5222d" onclick="clearAllData()">🗑 清空所有</button>
+    <button class="btn-sm green" onclick="document.getElementById('fileInput').click()">+ 添加</button>
+    <button class="btn-sm red" onclick="clearAllData()">🗑 清空</button>
   </div>
 
   <div class="search-bar">
-    <input type="text" placeholder="🔍 搜索门店名称..." oninput="filterS()">
+    <input type="text" id="searchInput" placeholder="搜索门店名称..." oninput="filterS()">
   </div>
 
   <div class="charts" id="overviewCharts"></div>
-
   <div class="grid" id="topGrid"></div>
 
   <div class="daily-table" id="dailyTableWrap" style="display:none">
@@ -95,18 +190,20 @@ body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:#f0f2f5;c
       </div>
     </div>
     <div class="stats-grid" id="dStats"></div>
-    <div class="charts"><div class="chart-card"><h3>各渠道金额对比</h3><canvas id="dcBar" height="140"></canvas></div><div class="chart-card"><h3>渠道占比</h3><canvas id="dcPie" height="140"></canvas></div></div>
-    <div class="charts"><div class="chart-card"><h3>总支付金额趋势</h3><canvas id="dcTrend" height="100"></canvas></div><div class="chart-card"><h3>外卖渠道趋势</h3><canvas id="dcDeliv" height="100"></canvas></div></div>
+    <div class="charts">
+      <div class="chart-card"><h3>各渠道金额对比</h3><canvas id="dcBar" height="140"></canvas></div>
+      <div class="chart-card"><h3>渠道占比</h3><canvas id="dcPie" height="140"></canvas></div>
+    </div>
+    <div class="charts">
+      <div class="chart-card"><h3>总支付金额趋势</h3><canvas id="dcTrend" height="100"></canvas></div>
+      <div class="chart-card"><h3>外卖渠道趋势</h3><canvas id="dcDeliv" height="100"></canvas></div>
+    </div>
     <div class="daily-table"><h3>每日明细</h3><table><thead><tr id="dtHead"></tr></thead><tbody id="dtBody"></tbody></table></div>
   </div>
 </div>
 
-
 <script src="libs/xlsx.full.min.js"></script>
 <script>
-// ══════════════════════════════════════
-// 纯本地版 - 无需后端
-// ══════════════════════════════════════
 const DATA = {};
 const dates = [];
 const FILE_STORAGE_KEY = 'ft_dashboard_files';
@@ -119,32 +216,33 @@ function saveFileList(list) {
 }
 
 function renderFileList() {
-  const el = document.getElementById('fileTags');
-  const files = loadFileList();
+  var el = document.getElementById('fileTags');
+  var files = loadFileList();
   if (files.length === 0) {
     el.innerHTML = '<span class="file-empty">暂无文件，请上传 Excel</span>';
   } else {
-    el.innerHTML = files.map((f,i) =>
-      '<span class="file-tag">' + esc(f.name) + ' <span class="del" onclick="removeFile(' + i + ')" title="删除">\u00d7</span></span>'
-    ).join('');
+    el.innerHTML = files.map(function(f,i){
+      return '<span class="file-tag">' + esc(f.name) + ' <span class="del" onclick="removeFile(' + i + ')">×</span></span>';
+    }).join('');
   }
 }
 
 function rebuildData() {
-  Object.keys(DATA).forEach(k => delete DATA[k]);
+  Object.keys(DATA).forEach(function(k){ delete DATA[k] });
   dates.length = 0;
-  const files = loadFileList();
-  for (const f of files) {
+  var files = loadFileList();
+  for (var fi = 0; fi < files.length; fi++) {
+    var f = files[fi];
     if (f.data) {
-      for (const dt of Object.keys(f.data)) {
-        const stores = f.data[dt];
+      for (var dt of Object.keys(f.data)) {
+        var stores = f.data[dt];
         if (!DATA[dt]) DATA[dt] = {};
-        for (const name of Object.keys(stores)) {
-          const vals = stores[name];
+        for (var name of Object.keys(stores)) {
+          var vals = stores[name];
           if (!DATA[dt][name]) {
             DATA[dt][name] = { 总支付:0, 抖音验券:0, 微信支付:0, 支付宝:0, 现金:0, 京东外卖:0, 美团外卖:0, 淘宝闪购:0, 美团验券:0, 抖音外卖:0, 采购:0 };
           }
-          for (const k of Object.keys(vals)) {
+          for (var k of Object.keys(vals)) {
             DATA[dt][name][k] = (DATA[dt][name][k]||0) + vals[k];
           }
         }
@@ -155,7 +253,7 @@ function rebuildData() {
 }
 
 function removeFile(idx) {
-  const files = loadFileList();
+  var files = loadFileList();
   if (idx < 0 || idx >= files.length) return;
   files.splice(idx, 1);
   saveFileList(files);
@@ -168,7 +266,7 @@ function removeFile(idx) {
 function clearAllData() {
   if (!confirm('确定清空所有数据？')) return;
   localStorage.removeItem(FILE_STORAGE_KEY);
-  Object.keys(DATA).forEach(k => delete DATA[k]);
+  Object.keys(DATA).forEach(function(k){ delete DATA[k] });
   dates.length = 0;
   allStores = [];
   init();
@@ -181,35 +279,29 @@ let allStores = [];
 
 function parseExcelDate(raw) {
   if (!raw) return '';
-  let d = null;
-  if (typeof raw === 'number') {
-    d = new Date((raw - 25569) * 86400 * 1000);
-  } else if (raw instanceof Date) {
-    d = raw;
-  } else {
+  var d = null;
+  if (typeof raw === 'number') { d = new Date((raw - 25569) * 86400 * 1000); }
+  else if (raw instanceof Date) { d = raw; }
+  else {
     var s = String(raw).trim();
     if (/^\d{4}[\/\-]\d{2}[\/\-]\d{2}$/.test(s)) return s.replace(/-/g, '/');
     d = new Date(s);
   }
-  if (d && !isNaN(d)) {
-    return d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
-  }
+  if (d && !isNaN(d)) return d.getFullYear() + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getDate()).padStart(2,'0');
   return '';
 }
 
 async function handleUpload(file) {
   if (!file) return;
   var st = document.getElementById("uploadStatus");
-  st.style.display = "block"; st.innerHTML = "解析中...";
-  
+  st.style.display = "block"; st.innerHTML = "⏳ 解析中...";
   try {
     var buf = await file.arrayBuffer();
     var wb = XLSX.read(buf, { type: 'array' });
     var sheet = wb.Sheets[wb.SheetNames[0]];
     var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-    
     if (rows.length < 3) throw new Error('文件格式错误');
-    
+
     var candidateRows = [];
     for (var i = 0; i < Math.min(rows.length, 20); i++) {
       var row = rows[i];
@@ -219,85 +311,47 @@ async function handleUpload(file) {
       candidateRows.push({ idx: i, row: strRow });
     }
     if (candidateRows.length === 0) throw new Error('无法识别表头');
-    
+
     var firstRowStr = candidateRows[0].row.join(' ');
     var looksLikeDateRange = /[\/\-年月日]/.test(firstRowStr);
-    
     var headerRowIdx, headers;
     if (looksLikeDateRange && candidateRows.length >= 2) {
-      headerRowIdx = candidateRows[1].idx;
-      headers = candidateRows[1].row;
+      headerRowIdx = candidateRows[1].idx; headers = candidateRows[1].row;
     } else {
-      headerRowIdx = candidateRows[0].idx;
-      headers = candidateRows[0].row;
+      headerRowIdx = candidateRows[0].idx; headers = candidateRows[0].row;
     }
-    
+
     var fileDate = '';
     var dateIdx = headers.findIndex(function(h){return h.includes('日期')});
-    if (dateIdx !== -1) {
-      fileDate = parseExcelDate(rows[headerRowIdx + 1][dateIdx]);
-    } else if (looksLikeDateRange && candidateRows.length >= 2) {
-      var dateRangeStr = candidateRows[0].row.join(' ').trim();
-      var dateMatch = dateRangeStr.match(/(\d{4}[\/\-]\d{2}[\/\-]\d{2})/);
-      if (dateMatch) fileDate = dateMatch[1].replace(/-/g, '/');
+    if (dateIdx !== -1) fileDate = parseExcelDate(rows[headerRowIdx + 1][dateIdx]);
+    else if (looksLikeDateRange && candidateRows.length >= 2) {
+      var dm = candidateRows[0].row.join(' ').trim().match(/(\d{4}[\/\-]\d{2}[\/\-]\d{2})/);
+      if (dm) fileDate = dm[1].replace(/-/g, '/');
     }
     if (!fileDate) throw new Error('无法识别日期');
-    
-    var chMap = {
-      '总支付金额': '总支付', '抖音验券金额': '抖音验券',
-      '微信支付金额': '微信支付', '支付宝金额': '支付宝',
-      '美团外卖金额': '美团外卖', '京东外卖金额': '京东外卖',
-      '淘宝闪购金额': '淘宝闪购', '美团验券金额': '美团验券',
-      '抖音外卖金额': '抖音外卖', '现金金额': '现金',
-      '采购': '采购'
-    };
-    
+
+    var chMap = { '总支付金额':'总支付','抖音验券金额':'抖音验券','微信支付金额':'微信支付','支付宝金额':'支付宝','美团外卖金额':'美团外卖','京东外卖金额':'京东外卖','淘宝闪购金额':'淘宝闪购','美团验券金额':'美团验券','抖音外卖金额':'抖音外卖','现金金额':'现金','采购':'采购' };
+
     var storeData = {};
     for (var i = headerRowIdx + 1; i < rows.length; i++) {
-      var row = rows[i];
-      if (!row.length) continue;
+      var row = rows[i]; if (!row.length) continue;
       var name = String(row[headers.findIndex(function(h){return h.includes('门店')})] || '').trim();
       if (!name) continue;
-      
       var rowDate = fileDate;
-      if (dateIdx !== -1 && row[dateIdx] != null) {
-        var parsed = parseExcelDate(row[dateIdx]);
-        if (parsed) rowDate = parsed;
-      }
-      
+      if (dateIdx !== -1 && row[dateIdx] != null) { var p = parseExcelDate(row[dateIdx]); if (p) rowDate = p; }
       if (!storeData[rowDate]) storeData[rowDate] = {};
-      if (!storeData[rowDate][name]) {
-        storeData[rowDate][name] = { 总支付:0, 抖音验券:0, 微信支付:0, 支付宝:0, 现金:0, 京东外卖:0, 美团外卖:0, 淘宝闪购:0, 美团验券:0, 抖音外卖:0, 采购:0 };
-      }
-      for (var src of Object.keys(chMap)) {
-        var idx = headers.indexOf(src);
-        if (idx !== -1) {
-          var v = parseFloat(row[idx]);
-          if (!isNaN(v)) storeData[rowDate][name][chMap[src]] += v;
-        }
-      }
+      if (!storeData[rowDate][name]) storeData[rowDate][name] = { 总支付:0, 抖音验券:0, 微信支付:0, 支付宝:0, 现金:0, 京东外卖:0, 美团外卖:0, 淘宝闪购:0, 美团验券:0, 抖音外卖:0, 采购:0 };
+      for (var src of Object.keys(chMap)) { var idx = headers.indexOf(src); if (idx !== -1) { var v = parseFloat(row[idx]); if (!isNaN(v)) storeData[rowDate][name][chMap[src]] += v; } }
     }
-    
-    // 存入 localStorage（去重：同日期同名文件不重复存）
+
     var files = loadFileList();
     var exists = files.find(function(f){return f.name === file.name && f.date === fileDate});
-    if (!exists) {
-      files.push({ name: file.name, date: fileDate, data: storeData });
-      saveFileList(files);
-    }
-    
-    allStores = [];
-    rebuildData();
-    init();
-    renderFileList();
-    
-    var storeCount = Object.values(storeData).reduce(function(max, d){return Math.max(max, Object.keys(d).length)}, 0);
-    st.innerHTML = "\u2713 上传成功! " + Object.keys(storeData).join(", ") + " " + storeCount + "门店";
+    if (!exists) { files.push({ name: file.name, date: fileDate, data: storeData }); saveFileList(files); }
+    allStores = []; rebuildData(); init(); renderFileList();
+    var sc = Object.values(storeData).reduce(function(m,d){return Math.max(m,Object.keys(d).length)},0);
+    st.innerHTML = "✅ 上传成功！" + Object.keys(storeData).join(", ") + " · " + sc + " 门店";
     setTimeout(function(){st.style.display='none'}, 3000);
-  } catch(e) { 
-    console.error(e);
-    st.innerHTML = "ERR: " + e.message; 
-  }
+  } catch(e) { console.error(e); st.innerHTML = "❌ " + e.message; }
 }
 
 function init() {
@@ -310,45 +364,40 @@ function init() {
         seen[name] = true;
         var totals = {};
         for (var ci = 0; ci < channels.length; ci++) {
-          var ch = channels[ci];
-          var s = 0;
-          for (var dj = 0; dj < dates.length; dj++) { s += (DATA[dates[dj]][name]||{})[ch]||0; }
+          var ch = channels[ci], s = 0;
+          for (var dj = 0; dj < dates.length; dj++) s += (DATA[dates[dj]][name]||{})[ch]||0;
           totals[ch] = Math.round(s*100)/100;
         }
-        allStores.push({name: name, totals: totals});
+        allStores.push({name:name, totals:totals});
       }
     }
   }
   allStores.sort(function(a,b){return (b.totals['总支付']||0)-(a.totals['总支付']||0)});
-  
+
   document.getElementById('sStores').textContent = allStores.length;
   document.getElementById('sDates').textContent = dates.length;
   var grand = allStores.reduce(function(a,b){return a+(b.totals['总支付']||0)},0);
-  document.getElementById('sTotal').textContent = '\u00a5' + (grand/10000).toFixed(1) + '万';
-  
-  renderTopCards();
-  renderOverviewCharts();
-  renderDailyTable();
-  renderStoreList();
+  document.getElementById('sTotal').textContent = '¥' + (grand/10000).toFixed(1) + '万';
+
+  renderTopCards(); renderOverviewCharts(); renderDailyTable(); renderStoreList();
 }
 
 function renderTopCards() {
   var g = document.getElementById('topGrid');
+  if (allStores.length === 0) { g.innerHTML = '<div class="empty-state"><div class="icon">📊</div><p>上传 Excel 文件开始查看数据</p></div>'; return; }
   g.innerHTML = allStores.slice(0,10).map(function(s){
-    return '<div class="card" onclick="showDetail(\''+esc(s.name)+'\')"><h4>\uD83C\uDFEA '+esc(s.name)+'</h4><div class="card-num">\u00a5'+s.totals['总支付'].toLocaleString()+'</div><div class="card-sub">'+dates.length+'日总支付 \u00b7 点击查看 \u2192</div></div>';
+    return '<div class="card" onclick="showDetail(\''+esc(s.name)+'\')"><h4>🏪 '+esc(s.name)+'</h4><div class="card-num">¥'+s.totals['总支付'].toLocaleString()+'</div><div class="card-sub">'+dates.length+'日总支付 · 点击查看 →</div></div>';
   }).join('');
 }
 
 function renderOverviewCharts() {
   var c = document.getElementById('overviewCharts');
   if (dates.length < 2) { c.innerHTML = ''; return; }
-  c.innerHTML = '<div class="chart-card"><h3>每日总支付趋势</h3><canvas id="ocLine" height="120"></canvas></div><div class="chart-card"><h3>渠道金额对比</h3><canvas id="ocBar" height="120"></canvas></div>';
-  
-  var dailyTotals = dates.map(function(d){var s=0;for(var n in DATA[d])s+=DATA[d][n]['总支付']||0;return Math.round(s)});
-  new Chart(document.getElementById('ocLine'),{type:'line',data:{labels:dates,datasets:[{label:'总支付',data:dailyTotals,borderColor:'#4472C4',backgroundColor:'rgba(68,114,196,0.1)',fill:true,tension:0.4,pointRadius:5}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
-  
-  var chVals = chShort.map(function(ch){var s=0;for(var i=0;i<dates.length;i++)for(var n in DATA[dates[i]])s+=(DATA[dates[i]][n]||{})[ch]||0;return Math.round(s)});
-  new Chart(document.getElementById('ocBar'),{type:'bar',data:{labels:chShort,datasets:[{label:'金额',data:chVals,backgroundColor:'rgba(68,114,196,0.75)',borderRadius:6}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+  c.innerHTML = '<div class="chart-card"><h3>📈 每日总支付趋势</h3><canvas id="ocLine" height="120"></canvas></div><div class="chart-card"><h3>📊 渠道金额对比</h3><canvas id="ocBar" height="120"></canvas></div>';
+  var dt = dates.map(function(d){var s=0;for(var n in DATA[d])s+=DATA[d][n]['总支付']||0;return Math.round(s)});
+  new Chart(document.getElementById('ocLine'),{type:'line',data:{labels:dates,datasets:[{label:'总支付',data:dt,borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.08)',fill:true,tension:.4,pointRadius:5,pointBackgroundColor:'#6366f1'}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});
+  var cv = chShort.map(function(ch){var s=0;for(var i=0;i<dates.length;i++)for(var n in DATA[dates[i]])s+=(DATA[dates[i]][n]||{})[ch]||0;return Math.round(s)});
+  new Chart(document.getElementById('ocBar'),{type:'bar',data:{labels:chShort,datasets:[{label:'金额',data:cv,backgroundColor:['#6366f1','#8b5cf6','#a78bfa','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899'],borderRadius:8}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});
 }
 
 function renderDailyTable() {
@@ -357,66 +406,52 @@ function renderDailyTable() {
   wrap.style.display='block';
   document.getElementById('dailyHead').innerHTML='<th>日期</th><th>门店数</th>'+channels.map(function(ch){return '<th>'+ch+'</th>'}).join('');
   var rows = dates.map(function(dt){
-    var d=DATA[dt];var names=Object.keys(d);
+    var d=DATA[dt],names=Object.keys(d);
     var cells=['<td>'+dt+'</td>','<td>'+names.length+'</td>'];
-    for (var i=0;i<channels.length;i++){var s=0;for(var n in d)s+=d[n][channels[i]]||0;cells.push('<td>'+Math.round(s*100)/100+'</td>');}
+    for(var i=0;i<channels.length;i++){var s=0;for(var n in d)s+=d[n][channels[i]]||0;cells.push('<td>'+Math.round(s*100)/100+'</td>');}
     return '<tr>'+cells.join('')+'</tr>';
   }).join('');
-  var procTotal=0;for(var i=0;i<dates.length;i++)for(var n in DATA[dates[i]])procTotal+=(DATA[dates[i]][n]['采购']||0);
-  if(procTotal>0)rows+='<tr class="sum-row"><td>\uD83D\uDCE6 采购合计</td><td>-</td>'+channels.map(function(){return '<td>-</td>'}).join('')+'</tr>';
+  var pt=0;for(var i=0;i<dates.length;i++)for(var n in DATA[dates[i]])pt+=(DATA[dates[i]][n]['采购']||0);
+  if(pt>0)rows+='<tr class="sum-row"><td>📦 采购合计</td><td>-</td>'+channels.map(function(){return '<td>-</td>'}).join('')+'</tr>';
   document.getElementById('dailyBody').innerHTML=rows;
 }
 
 function renderStoreList(list) {
   list=list||allStores;
   if(list.length===0){document.getElementById('storeListWrap').style.display='none';return;}
-  document.getElementById('storeRows').innerHTML=list.map(function(s){return '<div class="store-row" onclick="showDetail(\''+esc(s.name)+'\')"><div class="sn">\uD83C\uDFEA '+esc(s.name)+'</div><div class="sv">\u00a5'+s.totals['总支付'].toLocaleString()+'</div></div>'}).join('');
+  document.getElementById('storeRows').innerHTML=list.map(function(s){return '<div class="store-row" onclick="showDetail(\''+esc(s.name)+'\')"><div class="sn">🏪 '+esc(s.name)+'</div><div class="sv">¥'+s.totals['总支付'].toLocaleString()+'</div></div>'}).join('');
   document.getElementById('storeListWrap').style.display='block';
 }
 function filterS(){
-  var q=document.querySelector('.search-bar input').value.trim().toLowerCase();
+  var q=document.getElementById('searchInput').value.trim().toLowerCase();
   renderStoreList(q?allStores.filter(function(s){return s.name.toLowerCase().includes(q)}):allStores);
 }
 
 function showDetail(name) {
   document.getElementById('mainView').style.display='none';
   document.getElementById('detailView').classList.add('active');
-  document.getElementById('dTitle').textContent='\uD83C\uDFEA '+name;
+  document.getElementById('dTitle').textContent='🏪 '+name;
   document.getElementById('dSub').textContent='数据日期：'+dates.join(' / ');
-  
   var keyCh=['总支付','抖音验券','微信支付','支付宝','美团外卖'];
   var changes={};
-  if(dates.length>=2){
-    var d1=dates[dates.length-2],d2=dates[dates.length-1];
-    for(var i=0;i<keyCh.length;i++){
-      var ch=keyCh[i];
-      var v1=(DATA[d1][name]||{})[ch]||0,v2=(DATA[d2][name]||{})[ch]||0;
-      changes[ch]=v1>0?Math.round((v2-v1)/v1*1000)/10:null;
-    }
-  }
+  if(dates.length>=2){var d1=dates[dates.length-2],d2=dates[dates.length-1];for(var i=0;i<keyCh.length;i++){var ch=keyCh[i],v1=(DATA[d1][name]||{})[ch]||0,v2=(DATA[d2][name]||{})[ch]||0;changes[ch]=v1>0?Math.round((v2-v1)/v1*1000)/10:null;}}
   document.getElementById('dStats').innerHTML=keyCh.map(function(ch){
     var latest=(DATA[dates[dates.length-1]][name]||{})[ch]||0;
-    var c=changes[ch];
-    var cs=c===null?'仅一期':((c>=0?'+':'')+c+'%');
-    var cl=c===null?'neu':(c>=0?'up':'down');
-    return '<div class="stat-c"><div class="sl">'+ch+'</div><div class="sv">\u00a5'+latest.toLocaleString()+'</div><div class="sc '+cl+'">'+(dates.length>1?'较上期 '+cs:'')+'</div></div>';
+    var c=changes[ch];var cs=c===null?'仅一期':((c>=0?'+':'')+c+'%');var cl=c===null?'neu':(c>=0?'up':'down');
+    return '<div class="stat-c"><div class="sl">'+ch+'</div><div class="sv">¥'+latest.toLocaleString()+'</div><div class="sc '+cl+'">'+(dates.length>1?'较上期 '+cs:'')+'</div></div>';
   }).join('');
-  
   var procVal=(DATA[dates[dates.length-1]][name]||{})['采购']||0;
-  var procSection=document.getElementById('procurementSection');
-  var procEl=document.getElementById('procStats');
+  var procSection=document.getElementById('procurementSection'),procEl=document.getElementById('procStats');
   if(procVal>0||dates.some(function(d){return(DATA[d][name]||{})['采购']>0})){
     procSection.style.display='block';
-    var procHtml='<div style="padding:10px;background:#fff3e0;border-radius:10px"><div style="font-size:13px;color:#888">最新日期采购金额</div><div style="font-size:22px;font-weight:700;color:#e65100">\u00a5'+procVal.toFixed(2)+'</div></div>';
-    var procDays=dates.map(function(d){var pv=(DATA[d][name]||{})['采购']||0;return pv>0?'<div style="padding:6px 10px;background:#fff8e1;border-radius:8px;font-size:13px">'+d+'：\u00a5'+pv.toFixed(2)+'</div>':''}).filter(Boolean).join('');
-    if(procDays)procHtml+='<div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">'+procDays+'</div>';
-    procEl.innerHTML=procHtml;
+    var ph='<div style="padding:14px;background:#fffbeb;border-radius:12px;border:1px solid #fde68a"><div style="font-size:12px;color:#92400e">最新采购金额</div><div style="font-size:24px;font-weight:800;color:#d97706">¥'+procVal.toFixed(2)+'</div></div>';
+    var pd=dates.map(function(d){var pv=(DATA[d][name]||{})['采购']||0;return pv>0?'<div style="padding:8px 12px;background:#fffbeb;border-radius:8px;font-size:13px;border:1px solid #fde68a">'+d+'：¥'+pv.toFixed(2)+'</div>':''}).filter(Boolean).join('');
+    if(pd)ph+='<div style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px">'+pd+'</div>';
+    procEl.innerHTML=ph;
   }else{procSection.style.display='none';}
-  
   var dtCh=['总支付','抖音验券','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
   document.getElementById('dtHead').innerHTML='<th>日期</th>'+dtCh.map(function(c){return '<th>'+c+'</th>'}).join('');
-  document.getElementById('dtBody').innerHTML=dates.map(function(dt){var r=DATA[dt][name]||{};return '<tr><td>'+dt+'</td>'+dtCh.map(function(c){return '<td>\u00a5'+((r[c]||0).toLocaleString())+'</td>'}).join('')+'</tr>'}).join('');
-  
+  document.getElementById('dtBody').innerHTML=dates.map(function(dt){var r=DATA[dt][name]||{};return '<tr><td>'+dt+'</td>'+dtCh.map(function(c){return '<td>¥'+((r[c]||0).toLocaleString())+'</td>'}).join('')+'</tr>'}).join('');
   setTimeout(function(){renderDetailCharts(name)},100);
 }
 
@@ -424,29 +459,20 @@ function closeDetail(){document.getElementById('detailView').classList.remove('a
 
 function renderDetailCharts(name){
   Chart.defaults.font.family="'Microsoft YaHei',sans-serif";
-  var COLORS=['#4472C4','#ED7D31','#A5A5A5','#70AD47','#FFC000','#5B9BD5','#D97D7A','#B5855A','#636382','#92CD50'];
-  var latestDt=dates[dates.length-1];
-  var lr=DATA[latestDt][name]||{};
-  
+  var C=['#6366f1','#8b5cf6','#a78bfa','#22c55e','#f59e0b','#06b6d4','#ec4899','#f97316','#ef4444','#14b8a6'];
+  var lr=DATA[dates[dates.length-1]][name]||{};
   var barCh=['总支付','抖音验券','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
-  new Chart(document.getElementById('dcBar'),{type:'bar',data:{labels:barCh,datasets:[{label:'金额',data:barCh.map(function(ch){return lr[ch]||0}),backgroundColor:COLORS,borderRadius:6}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
-  
+  new Chart(document.getElementById('dcBar'),{type:'bar',data:{labels:barCh,datasets:[{label:'金额',data:barCh.map(function(ch){return lr[ch]||0}),backgroundColor:C,borderRadius:8}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});
   var pieCh=['抖音验券','微信支付','支付宝','京东外卖','美团外卖','淘宝闪购','美团验券','抖音外卖'];
-  new Chart(document.getElementById('dcPie'),{type:'pie',data:{labels:pieCh,datasets:[{data:pieCh.map(function(ch){return lr[ch]||0}),backgroundColor:COLORS}]},options:{responsive:true,plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11}}}}}});
-  
-  new Chart(document.getElementById('dcTrend'),{type:'line',data:{labels:dates,datasets:[{label:'总支付',data:dates.map(function(d){return(DATA[d][name]||{})['总支付']||0}),borderColor:'#4472C4',backgroundColor:'rgba(68,114,196,0.1)',fill:true,tension:0.4,pointRadius:5}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
-  
+  new Chart(document.getElementById('dcPie'),{type:'doughnut',data:{labels:pieCh,datasets:[{data:pieCh.map(function(ch){return lr[ch]||0}),backgroundColor:C,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,cutout:'55%',plugins:{legend:{position:'right',labels:{boxWidth:12,font:{size:11},padding:10}}}}});
+  new Chart(document.getElementById('dcTrend'),{type:'line',data:{labels:dates,datasets:[{label:'总支付',data:dates.map(function(d){return(DATA[d][name]||{})['总支付']||0}),borderColor:'#6366f1',backgroundColor:'rgba(99,102,241,.08)',fill:true,tension:.4,pointRadius:5,pointBackgroundColor:'#6366f1'}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});
   var delCh=['抖音验券','美团验券','抖音外卖','美团外卖','京东外卖','淘宝闪购'];
-  new Chart(document.getElementById('dcDeliv'),{type:'line',data:{labels:dates,datasets:delCh.map(function(ch,i){return{label:ch,data:dates.map(function(d){return(DATA[d][name]||{})[ch]||0}),borderColor:COLORS[i%COLORS.length],backgroundColor:'transparent',tension:0.4,pointRadius:4}})},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},scales:{y:{beginAtZero:true}}}});
+  new Chart(document.getElementById('dcDeliv'),{type:'line',data:{labels:dates,datasets:delCh.map(function(ch,i){return{label:ch,data:dates.map(function(d){return(DATA[d][name]||{})[ch]||0}),borderColor:C[i%C.length],backgroundColor:'transparent',tension:.4,pointRadius:4,borderWidth:2}})},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},scales:{y:{beginAtZero:true,grid:{color:'#f1f5f9'}},x:{grid:{display:false}}}}});
 }
 
 function esc(s){return s.replace(/'/g,"&#39;").replace(/"/g,'&quot;')}
 
-// 启动
-rebuildData();
-init();
-renderFileList();
+rebuildData(); init(); renderFileList();
 </script>
-</div>
 </body>
 </html>
