@@ -361,10 +361,17 @@ function expXLSX(){
   // 设置列宽
   ws1['!cols']=[{wch:18},{wch:12}].concat(dates.map(function(){return{wch:12}}));
 
-  // ── Sheet2: 趋势透视表（日期为行，门店+渠道为列）
-  // 结构：日期 | 门店1-总支付金额 | 门店1-微信支付 | ... | 门店2-总支付金额 | ...
-  var cols=[];aS.forEach(function(s){platforms.forEach(function(pk){cols.push(s+'-'+PL[pk])})});
-  var aoa2=[['日期'].concat(cols)];
+  // ── Sheet2: 趋势透视表（两级表头：门店→渠道）
+  // 第1行：空 | 门店1(合并13列) | 门店2(合并13列) | ...
+  // 第2行：日期 | 渠道1 | 渠道2 | ... | 渠道1 | 渠道2 | ...
+  // 第3行起：日期 | 数据...
+  var plNames=platforms.map(function(pk){return PL[pk]});
+  var row1=['日期'];var row2=['日期'].concat(plNames);
+  aS.forEach(function(s){row1.push(s);for(var i=1;i<plNames.length;i++)row1.push(null);plNames.forEach(function(n){row2.push(n)})});
+  var aoa2=[row1,row2];
+  // 合并单元格：门店名横跨 N个渠道列
+  var merges=[{s:{r:0,c:0},e:{r:1,c:0}}]; // 日期单元格纵向合并
+  aS.forEach(function(s,idx){var startC=1+idx*plNames.length;merges.push({s:{r:0,c:startC},e:{r:0,c:startC+plNames.length-1}})});
   dates.forEach(function(d){
     var row=[d];
     aS.forEach(function(store){
@@ -374,7 +381,11 @@ function expXLSX(){
     aoa2.push(row);
   });
   var ws2=XLSX.utils.aoa_to_sheet(aoa2);
-  ws2['!cols']=[{wch:12}].concat(cols.map(function(){return{wch:14}}));
+  ws2['!merges']=merges;
+  ws2['!cols']=[{wch:12}].concat(plNames.map(function(){return{wch:10}}).concat([]));
+  // 重复门店数×渠道数的列宽
+  var allCols=[{wch:12}];aS.forEach(function(){plNames.forEach(function(){allCols.push({wch:10})})});
+  ws2['!cols']=allCols;
 
   var wb={SheetNames:['支付明细','趋势数据'],Sheets:{'支付明细':ws1,'趋势数据':ws2}};
   var fname='门店渠道支付明细_'+new Date().toISOString().slice(0,10)+'.xlsx';
