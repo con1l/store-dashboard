@@ -60,7 +60,7 @@ body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:var(--bg)
     <button class="btn btn-p" onclick="document.getElementById('fi').click()">📁 上传Excel</button>
     <input type="file" id="fi" accept=".xls,.xlsx,.csv" multiple style="display:none" onchange="handleFiles(this.files)">
     <button class="btn btn-p" onclick="loadDemo()">🎲 加载示例数据</button>
-    <button class="btn btn-d" onclick="clearAll()">🗑 清空数据</button>
+    <button class="btn btn-d" onclick="function clearAll(){if(!confirm('确定清空？'))return;records=[];fInfo=[];localStorage.removeItem(SK);refreshAll()}">🗑 清空数据</button>
   </div>
   <div class="sb">
     <div class="i"><div class="n" id="hS">0</div><div class="l">门店</div></div>
@@ -161,6 +161,9 @@ function parseXL(file){
           for(var ch of CH)rec[ch.k]=g(ch.k);
           res.push(rec);
         }
+        // 解析结果去重（防止Excel本身有重复行）
+        var rseen={};
+        res=res.filter(function(r){var k=r.date+'|'+r.store;if(rseen[k])return false;rseen[k]=true;return true});
         ok({date:fd,records:res});
       }catch(e){no(e)}
     };
@@ -174,18 +177,32 @@ async function handleFiles(files){
   for(var i=0;i<files.length;i++){
     try{
       var r=await parseXL(files[i]);
-      // 按(date,store)去重：新数据覆盖旧数据
-      var newKeys=new Set(r.records.map(function(x){return x.date+'|'+x.store}));
-      records=records.filter(function(x){return !newKeys.has(x.date+'|'+x.store)});
       records=records.concat(r.records);
-      // fileInfo按日期去重
-      var newDates=new Set(r.records.map(function(x){return x.date}));
-      fInfo=fInfo.filter(function(x){return !newDates.has(x.date)});
       fInfo.push({name:files[i].name,date:r.date});
     }
     catch(e){alert('解析失败: '+files[i].name+' - '+e.message)}
   }
+  // 彻底去重：同(date,store)只保留最后出现的一条
+  var seen={};
+  var deduped=[];
+  for(var i=records.length-1;i>=0;i--){
+    var k=records[i].date+'|'+records[i].store;
+    if(!seen[k]){seen[k]=true;deduped.unshift(records[i]);}
+  }
+  records=deduped;
+  dedupRecords();
   saveS();refreshAll();
+}
+
+function dedupRecords(){
+  var seen={};
+  var deduped=[];
+  for(var i=records.length-1;i>=0;i--){
+    var k=records[i].date+'|'+records[i].store;
+    if(!seen[k]){seen[k]=true;deduped.unshift(records[i]);}
+  }
+  if(deduped.length!==records.length)console.log('dedup: '+records.length+' -> '+deduped.length);
+  records=deduped;
 }
 
 function clearAll(){if(!confirm('确定清空？'))return;records=[];fInfo=[];localStorage.removeItem(SK);refreshAll()}
@@ -332,7 +349,7 @@ function updCmpL(){
 }
 
 // ── 启动 ─══
-var stored=loadS();records=stored.r;fInfo=stored.f;
+var stored=loadS();records=stored.r;fInfo=stored.f;dedupRecords();
 refreshAll();
 window.addEventListener('resize',function(){for(var k in EC)EC[k].resize()});
 </script>
