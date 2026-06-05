@@ -112,17 +112,25 @@ body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:var(--bg)
 var SK='ft_analytics3',records=[],fInfo=[];
 // 7个独立渠道
 var CH=[
-  {k:'mt_wm',n:'美团外卖',c:'#f59e0b'},
-  {k:'dy_yq',n:'抖音验券',c:'#ef4444'},
-  {k:'tg_yq',n:'团购验券',c:'#a855f7'},
+  {k:'tp',   n:'总支付金额',c:'#6366f1'},
+  {k:'wx',   n:'微信支付',  c:'#22c55e'},
+  {k:'alipay',n:'支付宝',  c:'#60a5fa'},
+  {k:'cash', n:'现金',      c:'#10b981'},
+  {k:'jd_wm',n:'京东外卖',  c:'#e11d48'},
+  {k:'mt_yq',n:'美团验券',  c:'#f59e0b'},
+  {k:'dy_yq',n:'抖音验券',  c:'#ef4444'},
+  {k:'mt_wm',n:'美团外卖',  c:'#fb923c'},
+  {k:'tb_sg',n:'淘宝闪购',  c:'#f97316'},
+  {k:'dy_wm',n:'抖音外卖',  c:'#ec4899'},
+  {k:'tg_yq',n:'团购验券',  c:'#a855f7'},
   {k:'elm',  n:'饿了么外卖',c:'#3b82f6'},
-  {k:'wx',   n:'微信支付',c:'#22c55e'},
-  {k:'alipay',n:'支付宝',c:'#60a5fa'},
-  {k:'cash', n:'现金',    c:'#10b981'}
+  {k:'ysf',  n:'云闪付',    c:'#e5e7eb'}
 ];
 var CHK=CH.map(function(c){return c.k});
 var CHN=CH.map(function(c){return c.n});
 var CHC=CH.map(function(c){return c.c});
+// 图表只显示渠道（不含总支付金额）
+var CH_CHART=CH.filter(function(c){return c.k!=='tp'});
 
 function loadS(){try{return JSON.parse(localStorage.getItem(SK))||{r:[],f:[]}}catch(e){return{r:[],f:[]}}}
 function saveS(){localStorage.setItem(SK,JSON.stringify({r:records,f:fInfo}))}
@@ -151,7 +159,7 @@ function parseXL(file){
         if(di!==-1&&rows[hi+1])fd=pDate(rows[hi+1][di]);
         if(!fd){for(var i=0;i<=hi;i++){var t=rows[i].join(' '),dm=t.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);if(dm){fd=dm[1]+'-'+dm[2].padStart(2,'0')+'-'+dm[3].padStart(2,'0');break}}}
         if(!fd){no(new Error('无法识别日期'));return}
-        var cm={},cds=[{p:'门店名称',t:'store'},{p:'营业日期',t:'bizdate'},{p:'总支付金额',t:'tp'},{p:'微信支付金额',t:'wx'},{p:'支付宝金额',t:'alipay'},{p:'现金金额',t:'cash'},{p:'美团外卖金额',t:'mt_wm'},{p:'抖音验券金额',t:'dy_yq'},{p:'团购验券金额',t:'tg_yq'},{p:'饿了么外卖金额',t:'elm'}];
+        var cm={},cds=[{p:'门店名称',t:'store'},{p:'营业日期',t:'bizdate'},{p:'总支付金额',t:'tp'},{p:'微信支付金额',t:'wx'},{p:'支付宝金额',t:'alipay'},{p:'现金金额',t:'cash'},{p:'京东外卖金额',t:'jd_wm'},{p:'美团验券金额',t:'mt_yq'},{p:'抖音验券金额',t:'dy_yq'},{p:'美团外卖金额',t:'mt_wm'},{p:'淘宝闪购金额',t:'tb_sg'},{p:'抖音外卖金额',t:'dy_wm'},{p:'团购验券金额',t:'tg_yq'},{p:'饿了么外卖金额',t:'elm'},{p:'云闪付金额',t:'ysf'}];
         for(var ci=0;ci<hdr.length;ci++)for(var c of cds)if(hdr[ci].includes(c.p)){cm[c.t]=ci;break}
         var res=[],fileTotal=0;
         for(var i=hi+1;i<rows.length;i++){
@@ -266,7 +274,7 @@ function getF(){
 
 function refresh(){var d=getF();rTable(d);rCharts(d)}
 
-function rowTotal(r){var s=0;for(var ch of CH)s+=r[ch.k]||0;return s}
+function rowTotal(r){return r.tp||0}
 
 var _tblExpanded=false,_tblData=[];
 function rTable(data){
@@ -304,25 +312,25 @@ function gc(id){if(!EC[id])EC[id]=echarts.init(document.getElementById(id));retu
 function rCharts(data){
   // 更新趋势图渠道下拉
   var sel=document.getElementById('lineCh'),cv=sel.value;
-  var opts='<option value="">全部渠道</option>'+CH.map(function(ch){return'<option value="'+ch.k+'">'+ch.n+'</option>'}).join('');
+  var opts='<option value="">全部渠道</option>'+CH_CHART.map(function(ch){return'<option value="'+ch.k+'">'+ch.n+'</option>'}).join('');
   sel.innerHTML=opts;if(cv)sel.value=cv;
 
   // 柱状图
   var bar=gc('cBar'),agg={};
-  for(var ch of CH)agg[ch.k]=0;
-  for(var r of data)for(var ch of CH)agg[ch.k]+=(r[ch.k]||0);
-  bar.setOption({tooltip:{trigger:'axis'},grid:{left:70,right:20,top:20,bottom:40},xAxis:{type:'category',data:CHN,axisTick:{alignWithLabel:true},axisLabel:{fontSize:11}},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:[{type:'bar',data:CH.map(function(ch,i){return{name:ch.n,value:Math.round(agg[ch.k]*100)/100,itemStyle:{color:CHC[i],borderRadius:[6,6,0,0]}}}),barWidth:'55%'}]});
+  for(var ch of CH_CHART)agg[ch.k]=0;
+  for(var r of data)for(var ch of CH_CHART)agg[ch.k]+=(r[ch.k]||0);
+  bar.setOption({tooltip:{trigger:'axis'},grid:{left:70,right:20,top:20,bottom:40},xAxis:{type:'category',data:CH_CHART.map(function(c){return c.n}),axisTick:{alignWithLabel:true},axisLabel:{fontSize:11}},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:[{type:'bar',data:CH_CHART.map(function(ch){return{name:ch.n,value:Math.round(agg[ch.k]*100)/100,itemStyle:{color:ch.c,borderRadius:[6,6,0,0]}}}),barWidth:'55%'}]});
 
   // 饼图
   var pie=gc('cPie');
-  pie.setOption({tooltip:{trigger:'item',formatter:'{b}: ¥{c} ({d}%)'},legend:{bottom:0,textStyle:{fontSize:11},type:'scroll'},series:[{type:'pie',radius:['35%','65%'],label:{formatter:'{b}\n{d}%'},data:CH.map(function(ch,i){return{name:ch.n,value:Math.round(agg[ch.k]*100)/100,itemStyle:{color:CHC[i]}}}),emphasis:{itemStyle:{shadowBlur:10,shadowColor:'rgba(0,0,0,.2)'}}}]});
+  pie.setOption({tooltip:{trigger:'item',formatter:'{b}: ¥{c} ({d}%)'},legend:{bottom:0,textStyle:{fontSize:11},type:'scroll'},series:[{type:'pie',radius:['35%','65%'],label:{formatter:'{b}\n{d}%'},data:CH_CHART.map(function(ch){return{name:ch.n,value:Math.round(agg[ch.k]*100)/100,itemStyle:{color:ch.c}}}),emphasis:{itemStyle:{shadowBlur:10,shadowColor:'rgba(0,0,0,.2)'}}}]});
 
   // 趋势线（按日期聚合，支持全部门店）
   var line=gc('cLine');
-  var dMap={};for(var r of data){if(!dMap[r.date])dMap[r.date]={};for(var ch of CH){if(!dMap[r.date][ch.k])dMap[r.date][ch.k]=0;dMap[r.date][ch.k]+=(r[ch.k]||0)}}
+  var dMap={};for(var r of data){if(!dMap[r.date])dMap[r.date]={};for(var ch of CH_CHART){if(!dMap[r.date][ch.k])dMap[r.date][ch.k]=0;dMap[r.date][ch.k]+=(r[ch.k]||0)}}
   var xD=Object.keys(dMap).sort();
   var picked=document.getElementById('lineCh').value;
-  var showCH=picked?CH.filter(function(ch){return ch.k===picked}):CH;
+  var showCH=picked?CH_CHART.filter(function(ch){return ch.k===picked}):CH_CHART;
   line.setOption({tooltip:{trigger:'axis'},legend:{data:showCH.map(function(ch){return ch.n}),bottom:0,textStyle:{fontSize:11},type:'scroll'},grid:{left:70,right:20,top:20,bottom:50},xAxis:{type:'category',data:xD},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:showCH.map(function(ch,i){return{name:ch.n,type:'line',smooth:true,data:xD.map(function(d){return dMap[d][ch.k]||0}),lineStyle:{width:2},itemStyle:{color:ch.c}}})},true);
 }
 
@@ -335,7 +343,7 @@ function expXLSX(){
   var dMap={};data.forEach(function(r){dMap[r.date]=1});
   var dates=Object.keys(dMap).sort();
   function toSer(d){var b=new Date(1899,11,31);var dd=new Date(d);return Math.round((dd-b)/86400000)+1}
-  var PL={mt_wm:'美团外卖',dy_yq:'抖音验券',tt_yq:'团购验券',elm_wm:'饿了么外卖',wx:'微信支付',zfb:'支付宝',xj:'现金'};
+  var PL={tp:'总支付金额',wx:'微信支付',alipay:'支付宝',cash:'现金',jd_wm:'京东外卖',mt_yq:'美团验券',dy_yq:'抖音验券',mt_wm:'美团外卖',tb_sg:'淘宝闪购',dy_wm:'抖音外卖',tg_yq:'团购验券',elm:'饿了么外卖',ysf:'云闪付'};
   var platforms=Object.keys(PL);
   // 表头用可读日期（如 2026-03-01），同时设Excel日期数字值
   var aoa=[['年份',null].concat(dates)];
@@ -370,24 +378,24 @@ function runCmp(){
   if(!store){alert('请先选择一个门店');return}
   var rA=records.filter(function(r){return r.store===store&&r.date>=aA&&r.date<=aB}).sort(function(a,b){return a.date<b.date?-1:1});
   var rB=records.filter(function(r){return r.store===store&&r.date>=bA&&r.date<=bB}).sort(function(a,b){return a.date<b.date?-1:1});
-  var aggA={},aggB={};for(var ch of CH){aggA[ch.k]=0;aggB[ch.k]=0}
-  for(var r of rA)for(var ch of CH)aggA[ch.k]+=(r[ch.k]||0);
-  for(var r of rB)for(var ch of CH)aggB[ch.k]+=(r[ch.k]||0);
+  var aggA={},aggB={};for(var ch of CH_CHART){aggA[ch.k]=0;aggB[ch.k]=0}
+  for(var r of rA)for(var ch of CH_CHART)aggA[ch.k]+=(r[ch.k]||0);
+  for(var r of rB)for(var ch of CH_CHART)aggB[ch.k]+=(r[ch.k]||0);
 
   document.getElementById('cmpArea').style.display='';
 
   // 分组柱状图
   var cb=gc('cCBar');
-  cb.setOption({tooltip:{trigger:'axis'},legend:{data:['时段A','时段B'],bottom:0},grid:{left:70,right:20,top:20,bottom:40},xAxis:{type:'category',data:CHN,axisLabel:{fontSize:11}},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:[
-    {name:'时段A',type:'bar',data:CH.map(function(ch){return Math.round(aggA[ch.k]*100)/100}),itemStyle:{color:'#6366f1',borderRadius:[6,6,0,0]},barGap:'10%'},
-    {name:'时段B',type:'bar',data:CH.map(function(ch){return Math.round(aggB[ch.k]*100)/100}),itemStyle:{color:'#a78bfa',borderRadius:[6,6,0,0]}}
+  cb.setOption({tooltip:{trigger:'axis'},legend:{data:['时段A','时段B'],bottom:0},grid:{left:70,right:20,top:20,bottom:40},xAxis:{type:'category',data:CH_CHART.map(function(c){return c.n}),axisLabel:{fontSize:11}},yAxis:{type:'value',axisLabel:{formatter:'¥{value}'}},series:[
+    {name:'时段A',type:'bar',data:CH_CHART.map(function(ch){return Math.round(aggA[ch.k]*100)/100}),itemStyle:{color:'#6366f1',borderRadius:[6,6,0,0]},barGap:'10%'},
+    {name:'时段B',type:'bar',data:CH_CHART.map(function(ch){return Math.round(aggB[ch.k]*100)/100}),itemStyle:{color:'#a78bfa',borderRadius:[6,6,0,0]}}
   ]});
 
   // 双饼图
   var cp=gc('cCPie');
   cp.setOption({tooltip:{trigger:'item',formatter:'{b}: ¥{c} ({d}%)'},legend:{bottom:0,textStyle:{fontSize:11},type:'scroll'},series:[
-    {type:'pie',radius:['25%','50%'],center:['25%','48%'],label:{formatter:'{b}\n{d}%',fontSize:10},data:CH.map(function(ch,i){return{name:ch.n,value:Math.round(aggA[ch.k]*100)/100,itemStyle:{color:CHC[i]}}})},
-    {type:'pie',radius:['25%','50%'],center:['75%','48%'],label:{formatter:'{b}\n{d}%',fontSize:10},data:CH.map(function(ch,i){return{name:ch.n,value:Math.round(aggB[ch.k]*100)/100,itemStyle:{color:CHC[i]}}})}
+    {type:'pie',radius:['25%','50%'],center:['25%','48%'],label:{formatter:'{b}\n{d}%',fontSize:10},data:CH_CHART.map(function(ch){return{name:ch.n,value:Math.round(aggA[ch.k]*100)/100,itemStyle:{color:ch.c}}})},
+    {type:'pie',radius:['25%','50%'],center:['75%','48%'],label:{formatter:'{b}\n{d}%',fontSize:10},data:CH_CHART.map(function(ch){return{name:ch.n,value:Math.round(aggB[ch.k]*100)/100,itemStyle:{color:ch.c}}})}
   ],graphic:[{type:'text',left:'22%',top:'2%',style:{text:'时段A',fontSize:14,fontWeight:600,fill:'#6366f1'}},{type:'text',left:'72%',top:'2%',style:{text:'时段B',fontSize:14,fontWeight:600,fill:'#a78bfa'}}]});
 
   window._cmpA=rA;window._cmpB=rB;window._cmpAlabel=aA+'~'+aB;window._cmpBlabel=bA+'~'+bB;
