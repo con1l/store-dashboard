@@ -151,10 +151,13 @@ function parseXL(file){
         if(!fd){no(new Error('无法识别日期'));return}
         var cm={},cds=[{p:'门店名称',t:'store'},{p:'营业日期',t:'bizdate'},{p:'总支付金额',t:'tp'},{p:'微信支付金额',t:'wx'},{p:'支付宝金额',t:'alipay'},{p:'现金金额',t:'cash'},{p:'美团外卖金额',t:'mt_wm'},{p:'抖音验券金额',t:'dy_yq'},{p:'团购验券金额',t:'tg_yq'},{p:'饿了么外卖金额',t:'elm'}];
         for(var ci=0;ci<hdr.length;ci++)for(var c of cds)if(hdr[ci].includes(c.p)){cm[c.t]=ci;break}
-        var res=[];
+        var res=[],fileTotal=0;
         for(var i=hi+1;i<rows.length;i++){
           var rw=rows[i];if(!rw.length)continue;
-          var st=cm.store!==undefined?String(rw[cm.store]||'').trim():'';if(!st)continue;
+          var st=cm.store!==undefined?String(rw[cm.store]||'').trim():'';
+          // 跳过汇总行，但提取总支付金额
+          if(st==='汇总'||st==='合计'||st==='总计'){if(cm.tp!==undefined)fileTotal=parseFloat(rw[cm.tp])||0;continue}
+          if(!st)continue;
           var rd2=fd;
           // 优先用营业日期列
           if(cm.bizdate!==undefined&&rw[cm.bizdate]!=null){var pd=pDate(rw[cm.bizdate]);if(pd)rd2=pd}
@@ -167,7 +170,7 @@ function parseXL(file){
         // 解析结果去重（防止Excel本身有重复行）
         var rseen={};
         res=res.filter(function(r){var k=r.date+'|'+r.store;if(rseen[k])return false;rseen[k]=true;return true});
-        ok({date:fd,records:res});
+        ok({date:fd,records:res,fileTotal:fileTotal});
       }catch(e){no(e)}
     };
     rd.onerror=function(){no(new Error('读取失败'))};
@@ -181,7 +184,7 @@ async function handleFiles(files){
     try{
       var r=await parseXL(files[i]);
       records=records.concat(r.records);
-      fInfo.push({name:files[i].name,date:r.date});
+      fInfo.push({name:files[i].name,date:r.date,fileTotal:r.fileTotal||0});
     }
     catch(e){alert('解析失败: '+files[i].name+' - '+e.message)}
   }
@@ -231,7 +234,7 @@ function refreshAll(){
   var ad=gDates(),as=gStores();
   document.getElementById('hS').textContent=as.length;
   document.getElementById('hD').textContent=ad.length;
-  var tot=records.reduce(function(a,r){var s=0;for(var ch of CH)s+=r[ch.k]||0;return a+s},0);
+  var tot=fInfo.reduce(function(a,f){return a+(f.fileTotal||0)},0);
   document.getElementById('hT').textContent='¥'+(tot/1e4).toFixed(1)+'万';
   var sel=document.getElementById('fS'),cv=sel.value;
   sel.innerHTML='<option value="">-- 全部门店 --</option>'+as.map(function(s){return'<option value="'+s+'">'+s+'</option>'}).join('');
