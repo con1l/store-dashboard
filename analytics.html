@@ -71,7 +71,7 @@ body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:var(--bg)
 <div class="w">
   <div class="fs"><h3>📂 已上传</h3><div id="ft"><span class="fe">暂无文件</span></div></div>
   <div class="fl"><div class="fr">
-    <div class="fg"><label>门店</label><select id="fS" onchange="refresh()"><option value="">-- 全部门店 --</option></select></div>
+    <div class="fg" style="position:relative"><label>门店</label><div style="position:relative"><input type="text" id="fS_input" placeholder="全部门店" readonly style="width:100%;padding:8px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;cursor:pointer;box-sizing:border-box" onclick="toggleStoreDD()"><span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:10px">▼</span></div><div id="fS_dd" style="display:none;position:absolute;top:100%;left:0;right:0;z-index:100;background:#fff;border:1px solid var(--bd);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:260px;overflow-y:auto;margin-top:4px"></div></div>
     <div class="fg"><label>起始日期</label><input type="date" id="fA" onchange="refresh()"></div>
     <div class="fg"><label>结束日期</label><input type="date" id="fB" onchange="refresh()"></div>
     <div class="fg" style="justify-content:flex-end"><label>&nbsp;</label><button class="btn btn-o" onclick="resetF()">重置筛选</button></div>
@@ -236,19 +236,30 @@ function refreshAll(){
   document.getElementById('hD').textContent=ad.length;
   var tot=fInfo.reduce(function(a,f){return a+(f.fileTotal||0)},0);
   document.getElementById('hT').textContent='¥'+(tot/1e4).toFixed(1)+'万';
-  var sel=document.getElementById('fS'),cv=sel.value;
-  sel.innerHTML='<option value="">-- 全部门店 --</option>'+as.map(function(s){return'<option value="'+s+'">'+s+'</option>'}).join('');
-  if(cv&&as.includes(cv))sel.value=cv;
+  // 门店多选下拉
+  var dd=document.getElementById('fS_dd');
+  var as2=gStores();
+  var prevChecks=dd.querySelectorAll('input[type=checkbox]:checked');
+  var prevVals=[];prevChecks.forEach(function(c){prevVals.push(c.value)});
+  var h='<div style="padding:6px 10px;border-bottom:1px solid #eee;display:flex;gap:8px"><a href="javascript:void(0)" style="font-size:12px;color:#6366f1" onclick="toggleAllStores(true)">全选</a><a href="javascript:void(0)" style="font-size:12px;color:#6366f1" onclick="toggleAllStores(false)">清空</a></div>';
+  for(var s of as2){var chk=prevVals.indexOf(s)!==-1?'checked':'';h+='<label style="display:block;padding:4px 10px;font-size:13px;cursor:pointer"><input type="checkbox" value="'+s+'" '+chk+' onchange="onStoreCheck()"> '+s+'</label>';}
+  dd.innerHTML=h;
+  onStoreCheck();
   if(ad.length>0&&!document.getElementById('fA').value){document.getElementById('fA').value=ad[0];document.getElementById('fB').value=ad[ad.length-1]}
   refresh();
 }
 
+function toggleStoreDD(){var dd=document.getElementById('fS_dd');dd.style.display=dd.style.display==='none'?'':'none'}
+function toggleAllStores(on){var dd=document.getElementById('fS_dd');dd.querySelectorAll('input[type=checkbox]').forEach(function(c){c.checked=on});onStoreCheck()}
+function onStoreCheck(){var dd=document.getElementById('fS_dd');var checks=dd.querySelectorAll('input[type=checkbox]:checked');var inp=document.getElementById('fS_input');inp.value=checks.length===0?'全部门店':checks.length+'个门店已选';refresh()}
+function getSelectedStores(){var dd=document.getElementById('fS_dd');var checks=dd.querySelectorAll('input[type=checkbox]:checked');var vals=[];checks.forEach(function(c){vals.push(c.value)});return vals}
+
 function rmFile(i){if(i<0||i>=fInfo.length)return;var d=fInfo[i].date;records=records.filter(function(r){return r.date!==d});fInfo.splice(i,1);saveS();refreshAll()}
-function resetF(){document.getElementById('fS').value='';document.getElementById('fA').value='';document.getElementById('fB').value='';refresh()}
+function resetF(){var dd=document.getElementById('fS_dd');dd.querySelectorAll('input[type=checkbox]').forEach(function(c){c.checked=false});onStoreCheck();document.getElementById('fA').value='';document.getElementById('fB').value='';refresh()}
 
 function getF(){
-  var s=document.getElementById('fS').value,a=document.getElementById('fA').value,b=document.getElementById('fB').value;
-  return records.filter(function(r){if(s&&r.store!==s)return false;if(a&&r.date<a)return false;if(b&&r.date>b)return false;return true}).sort(function(a,b){return a.date<b.date?-1:1});
+  var ss=getSelectedStores(),a=document.getElementById('fA').value,b=document.getElementById('fB').value;
+  return records.filter(function(r){if(ss.length&&!ss.includes(r.store))return false;if(a&&r.date<a)return false;if(b&&r.date>b)return false;return true}).sort(function(a,b){return a.date<b.date?-1:1});
 }
 
 function refresh(){var d=getF();rTable(d);rCharts(d)}
@@ -373,6 +384,7 @@ function updCmpL(){
 // ── 启动 ─══
 var stored=loadS();records=stored.r;fInfo=stored.f;dedupRecords();
 refreshAll();
+document.addEventListener('click',function(e){var dd=document.getElementById('fS_dd'),inp=document.getElementById('fS_input');if(!dd||!inp)return;if(!dd.contains(e.target)&&e.target!==inp)dd.style.display='none'});
 window.addEventListener('resize',function(){for(var k in EC)EC[k].resize()});
 </script>
 </body>
