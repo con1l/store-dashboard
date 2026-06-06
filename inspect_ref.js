@@ -1,19 +1,20 @@
 var XLSX=require('xlsx');
 var wb=XLSX.readFile('D:\\Edge download\\已整理\\25年\\25年3、4、5月门店.xlsx',{cellDates:true});
 var ws=wb.Sheets['支付明细'];
-// show data rows (A2-B5)
-console.log('=== 数据行 ===');
-for(var r=2;r<=8;r++){
-  var row=[];
-  for(var c='A';c<='E';c++){
-    var cell=ws[c+r];
-    row.push(cell!=null?cell.v:'');
-  }
-  console.log(r+':',row.join(' | '));
+// 找日均在第几列
+var range=XLSX.utils.decode_range(ws['!ref']);
+console.log('Total cols:',range.e.c+1,'Total rows:',range.e.r+1);
+// 打印第1行所有列名
+console.log('\n--- 第1行列名 ---');
+for(var c=0;c<=range.e.c;c++){
+  var cell=XLSX.utils.encode_cell({r:0,c:c});
+  var val=ws[cell]?ws[cell].v:'(空)';
+  console.log(XLSX.utils.encode_col(c),':',val);
 }
-// show a trend sheet
-console.log('\n=== 茌平趋势数据 ===');
-var ws2=wb.Sheets['茌平趋势数据'];
-var keys2=Object.keys(ws2).filter(function(k){return k[0]!=='!'}).slice(0,20);
-keys2.forEach(function(k){console.log(k,':',JSON.stringify(ws2[k]))});
-if(ws2['!merges'])ws2['!merges'].forEach(function(m){console.log('merge:',JSON.stringify(m))});
+// 打印第2行前几列数据
+console.log('\n--- 第2行数据 ---');
+for(var c=0;c<=Math.min(range.e.c,20);c++){
+  var cell=XLSX.utils.encode_cell({r:1,c:c});
+  var val=ws[cell]?ws[cell].v:'(空)';
+  console.log(XLSX.utils.encode_col(c),':',val);
+}

@@ -351,20 +351,24 @@ function expXLSX(){
   var platforms=Object.keys(PL);
 
   // ── Sheet1: 支付明细（门店×渠道×日期矩阵）
-  var aoa=[['门店','渠道'].concat(dates)];
+  var aoa=[['门店','渠道','总计','日均'].concat(dates)];
   aS.forEach(function(store){
     platforms.forEach(function(pk){
       var row=[store,PL[pk]];
+      var total=0;var dailyValues=[];
       dates.forEach(function(d){
         var rec=data.find(function(r){return r.store===store&&r.date===d});
-        row.push(rec?(rec[pk]||0):0);
+        var val=rec?(rec[pk]||0):0;
+        dailyValues.push(val);total+=val;
       });
+      var avg=dates.length>0?total/dates.length:0;
+      row.push(parseFloat(total.toFixed(2)),parseFloat(avg.toFixed(2)));
+      row=row.concat(dailyValues);
       aoa.push(row);
     });
   });
   var ws1=XLSX.utils.aoa_to_sheet(aoa);
-  // 设置列宽
-  ws1['!cols']=[{wch:18},{wch:12}].concat(dates.map(function(){return{wch:12}}));
+  ws1['!cols']=[{wch:18},{wch:12},{wch:12},{wch:12}].concat(dates.map(function(){return{wch:12}}));
 
   // ── 趋势数据：每个门店一个 Sheet，两级表头
   // 第1行：日期 | 门店名(合并横跨渠道列)
