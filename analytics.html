@@ -366,32 +366,33 @@ function expXLSX(){
   // 设置列宽
   ws1['!cols']=[{wch:18},{wch:12}].concat(dates.map(function(){return{wch:12}}));
 
-  // ── Sheet2: 趋势透视表（两级表头：门店→渠道）
-  // 第1行：空 | 门店1(合并13列) | 门店2(合并13列) | ...
-  // 第2行：日期 | 渠道1 | 渠道2 | ... | 渠道1 | 渠道2 | ...
-  // 第3行起：日期 | 数据...
-  // Sheet2 只显示渠道（去掉总支付金额），与 CH_CHART 一致
+  // ── 趋势数据：每个门店一个 Sheet，两级表头
+  // 第1行：日期 | 门店名(合并横跨渠道列)
+  // 第2行：日期 | 渠道1 | 渠道2 | ...
+  // 第3行起：每天一行
   var chPk=platforms.filter(function(pk){return pk!=='tp'});
   var chNames=chPk.map(function(pk){return PL[pk]});
-  var row1=['日期'];var row2=['日期'].concat(chNames);
-  aS.forEach(function(s){row1.push(s);for(var i=1;i<chNames.length;i++)row1.push(null);chNames.forEach(function(n){row2.push(n)})});
-  var aoa2=[row1,row2];
-  var merges=[{s:{r:0,c:0},e:{r:1,c:0}}];
-  aS.forEach(function(s,idx){var startC=1+idx*chNames.length;merges.push({s:{r:0,c:startC},e:{r:0,c:startC+chNames.length-1}})});
-  dates.forEach(function(d){
-    var row=[d];
-    aS.forEach(function(store){
+  var sheetNames=['支付明细'];
+  var sheets={'支付明细':ws1};
+  aS.forEach(function(store){
+    var row1=['日期',store];var row2=['日期'].concat(chNames);
+    var aoaT=[row1,row2];
+    var mrg=[{s:{r:0,c:0},e:{r:1,c:0}},{s:{r:0,c:1},e:{r:0,c:chNames.length}}];
+    dates.forEach(function(d){
+      var row=[d];
       var rec=data.find(function(r){return r.store===store&&r.date===d});
       chPk.forEach(function(pk){row.push(rec?(rec[pk]||0):0)});
+      aoaT.push(row);
     });
-    aoa2.push(row);
+    var wsT=XLSX.utils.aoa_to_sheet(aoaT);
+    wsT['!merges']=mrg;
+    wsT['!cols']=[{wch:12}].concat(chNames.map(function(){return{wch:10}}));
+    // 用门店简称做 sheet 名
+    var sName=store.replace('饭团姐姐（','').replace('）','')+'趋势数据';
+    sheetNames.push(sName);sheets[sName]=wsT;
   });
-  var ws2=XLSX.utils.aoa_to_sheet(aoa2);
-  ws2['!merges']=merges;
-  var allCols=[{wch:12}];aS.forEach(function(){chNames.forEach(function(){allCols.push({wch:10})})});
-  ws2['!cols']=allCols;
 
-  var wb={SheetNames:['支付明细','趋势数据'],Sheets:{'支付明细':ws1,'趋势数据':ws2}};
+  var wb={SheetNames:sheetNames,Sheets:sheets};
   var fname='门店渠道支付明细_'+new Date().toISOString().slice(0,10)+'.xlsx';
   var buf=XLSX.write(wb,{bookType:'xlsx',type:'array'});
   var blob=new Blob([buf],{type:'application/octet-stream'});
