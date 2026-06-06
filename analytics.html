@@ -90,6 +90,7 @@ body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:var(--bg)
   <div class="cmp"><div class="fr">
     <div class="cb"><h4>🔵 时段 A</h4><div class="fg"><label>起始</label><input type="date" id="aA"></div><div class="fg" style="margin-top:6px"><label>结束</label><input type="date" id="aB"></div></div>
     <div class="cb"><h4>🟣 时段 B</h4><div class="fg"><label>起始</label><input type="date" id="bA"></div><div class="fg" style="margin-top:6px"><label>结束</label><input type="date" id="bB"></div></div>
+    <div class="fg"><label>门店</label><select id="cmpStore" style="padding:5px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;min-width:140px"></select></div>
     <div class="fg" style="justify-content:flex-end"><label>&nbsp;</label><button class="btn btn-p" onclick="runCmp()" style="background:#7c3aed;border-color:#7c3aed">📊 对比</button></div>
   </div></div>
   <div class="cg" id="cmpArea" style="display:none">
@@ -255,6 +256,8 @@ function refreshAll(){
   for(var s of as2){var chk=prevVals.indexOf(s)!==-1?'checked':'';h+='<label style="display:block;padding:4px 10px;font-size:13px;cursor:pointer"><input type="checkbox" value="'+s+'" '+chk+' onchange="onStoreCheck()"> '+s+'</label>';}
   dd.innerHTML=h;
   onStoreCheck();
+  // 时段对比门店下拉
+  var cs=document.getElementById('cmpStore');var csVal=cs.value;cs.innerHTML='<option value="">选择门店</option>'+as2.map(function(s){return'<option value="'+s+'"'+(s===csVal?' selected':'')+'>'+s+'</option>'}).join('');
   if(ad.length>0&&!document.getElementById('fA').value){document.getElementById('fA').value=ad[0];document.getElementById('fB').value=ad[ad.length-1]}
   refresh();
 }
@@ -397,7 +400,7 @@ function expXLSX(){
 
 // ── 时段对比 ─═
 function runCmp(){
-  var store=document.getElementById('fS').value;
+  var store=document.getElementById('cmpStore').value;
   var aA=document.getElementById('aA').value,aB=document.getElementById('aB').value;
   var bA=document.getElementById('bA').value,bB=document.getElementById('bB').value;
   if(!aA||!aB||!bA||!bB){alert('请选择两个时段的日期范围');return}
