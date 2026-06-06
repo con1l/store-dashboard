@@ -40,10 +40,12 @@ body{font-family:'Microsoft YaHei','PingFang SC',sans-serif;background:var(--bg)
 .dt{margin-top:16px;overflow-x:auto}
 .dt table{width:100%;border-collapse:collapse;font-size:13px}
 .dt th{background:var(--p);color:#fff;padding:10px 14px;text-align:right;font-weight:600;font-size:12px;white-space:nowrap}
-.dt th:first-child,.dt th:nth-child(2){text-align:left}
+.dt th:first-child,.dt th:nth-child(2){text-align:left;white-space:nowrap}
+.dt th:nth-child(2){min-width:120px}
 .dt th:first-child{border-radius:8px 0 0 0}.dt th:last-child{border-radius:0 8px 0 0}
 .dt td{padding:9px 14px;text-align:right;border-bottom:1px solid var(--bd);color:var(--t2)}
-.dt td:first-child,.dt td:nth-child(2){text-align:left;color:var(--t1);font-weight:600}
+.dt td:first-child,.dt td:nth-child(2){text-align:left;color:var(--t1);font-weight:600;white-space:nowrap}
+.dt td:nth-child(2){min-width:120px}
 .dt tr:hover td{background:var(--pb)}.dt .tr td{font-weight:700;color:var(--p);background:var(--pb);border-top:2px solid var(--p)}
 .cmp{background:linear-gradient(135deg,#faf5ff,#eef2ff);border-radius:var(--r);padding:22px 24px;margin-top:16px;border:1px solid #e9d5ff}
 .cmp h3{font-size:16px;font-weight:700;color:#7c3aed;margin-bottom:14px}
